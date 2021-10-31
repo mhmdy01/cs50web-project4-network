@@ -114,6 +114,8 @@ class PostTests(TestCase):
     def setUp(self):
         """Create new user and posts in db"""
         self.credentials = { 'username': 'foo',  'password': 'foo' }
+        self.post_to_add = {'content': 'new content'}
+
         u = User.objects.create_user(**self.credentials)
         Post.objects.create(content='post foo', user=u)
         Post.objects.create(content='post bar', user=u)
@@ -135,3 +137,35 @@ class PostTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['posts'].count(), 3)
+
+    def test_create_post_fails_unauthorized(self):
+        """Check that creating a post fails if current user isn't authorized"""
+        c = Client()
+        response = c.post('/posts/create', self.post_to_add)
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_create_post_fails_notallowed(self):
+        """Check that creating a post fails if request issued isn't POST"""
+        c = Client()
+        # must login first
+        c.login(**self.credentials)
+        response = c.get('/posts/create')
+
+        self.assertEqual(response.status_code, 405)
+
+    def test_create_post_works(self):
+        """Check that an authorized user can create posts"""
+        total_before = Post.objects.count()
+        
+        c = Client()
+        # must login first
+        c.login(**self.credentials)
+        response = c.post('/posts/create', self.post_to_add, follow=True)
+
+        # POV: views/templates/response
+        self.assertEqual(response.status_code, 200)
+
+        # POV: db state
+        total_after = Post.objects.count()
+        self.assertEqual(total_after, total_before + 1)
