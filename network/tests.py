@@ -1,6 +1,6 @@
 from django.test import TestCase, Client
 
-from .models import User
+from .models import User, Post
 
 
 class UserLogin(TestCase):
@@ -109,3 +109,21 @@ class UserSignup(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['user'].is_authenticated)
         self.assertEqual(response.context['message'], "Username already taken.")
+
+class PostTests(TestCase):
+    def setUp(self):
+        """Create new user and posts in db"""
+        self.credentials = { 'username': 'foo',  'password': 'foo' }
+        u = User.objects.create_user(**self.credentials)
+        Post.objects.create(content='post foo', user=u)
+        Post.objects.create(content='post bar', user=u)
+        Post.objects.create(content='post baz', user=u)
+
+    def test_user_posts_count(self):
+        """Check that the number of posts created by a user is correct"""
+        # this wouldn't work if other testcases running?
+        # (because they too create users)
+        u = User.objects.get(pk=1)
+        # u = User.objects.get(username=self.credentials['username'])
+
+        self.assertEqual(u.posts.count(), 3)
