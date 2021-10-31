@@ -1,5 +1,36 @@
 {% extends "network/layout.html" %}
 
 {% block body %}
-    TODO
+    <h1>All Posts</h1>
+
+    <!-- who can create posts? (ie. see new post form) -->
+    {% if request.user.is_authenticated %}
+        <div class="box">
+            <h2>New Post</h2>
+            <form action="{% url 'create_post' %}" method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <textarea name="content" class="form-control" rows="3"></textarea>
+                </div>
+                <input type="submit" value="Post" class="btn btn-primary">
+            </form>
+        </div>
+    {% endif %}
+
+    <div>
+        {% for post in posts %}
+            <div class="box">
+                <div>{{ post.content }}</div>
+                <!-- who can edit post? (ie. see edit btn) -->
+                {% if request.user == post.user %}
+                    <a href="#">Edit</a>
+                {% endif %}
+                <div>
+                    <a href="#">{{ post.user }}</a>
+                    |
+                    <span>{{ post.updated_at }}</span>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
 {% endblock %}
