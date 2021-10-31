@@ -127,3 +127,11 @@ class PostTests(TestCase):
         # u = User.objects.get(username=self.credentials['username'])
 
         self.assertEqual(u.posts.count(), 3)
+
+    def test_index_page(self):
+        """Should list correct number of posts"""
+        c = Client()
+        response = c.get('/')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['posts'].count(), 3)
