@@ -10,10 +10,8 @@ from .models import User
 def index(request):
     return render(request, "network/index.html")
 
-
 def login_view(request):
     if request.method == "POST":
-
         # Attempt to sign user in
         username = request.POST["username"]
         password = request.POST["password"]
@@ -26,15 +24,13 @@ def login_view(request):
         else:
             return render(request, "network/login.html", {
                 "message": "Invalid username and/or password."
-            })
+            }, status=401)
     else:
         return render(request, "network/login.html")
-
 
 def logout_view(request):
     logout(request)
     return HttpResponseRedirect(reverse("index"))
-
 
 def register(request):
     if request.method == "POST":
