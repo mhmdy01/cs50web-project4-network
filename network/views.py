@@ -1,6 +1,6 @@
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -11,6 +11,18 @@ def index(request):
     posts = Post.objects.all()
     return render(request, "network/index.html", {
         'posts': posts,
+    })
+
+def profile(request, username):
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        raise Http404()
+    
+    user_posts = user.posts.all()
+    return render(request, 'network/profile.html', {
+        'user': user,
+        'posts': user_posts
     })
 
 def login_view(request):

@@ -169,3 +169,29 @@ class PostTests(TestCase):
         # POV: db state
         total_after = Post.objects.count()
         self.assertEqual(total_after, total_before + 1)
+
+class UserProfile(TestCase):
+    def setUp(self):
+        """Create new user and posts in db"""
+        self.credentials = { 'username': 'foo',  'password': 'foo' }
+
+        u = User.objects.create_user(**self.credentials)
+        Post.objects.create(content='post foo', user=u)
+        Post.objects.create(content='post bar', user=u)
+        Post.objects.create(content='post baz', user=u)
+
+    def test_valid_profile_page(self):
+        """Check that there's a profile page for a valid username"""
+        c = Client()
+        response = c.get(f'/{self.credentials["username"]}')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['user'].username, self.credentials['username'])
+        self.assertEqual(response.context['posts'].count(), 3)
+
+    def test_invalid_profile_page(self):
+        """Check that there's no profile page for an invalid username"""
+        c = Client()
+        response = c.get(f'/{self.credentials["username"] + "s"}')
+
+        self.assertEqual(response.status_code, 404)

@@ -11,4 +11,7 @@ urlpatterns = [
 
     # post-related routes
     path('posts/create', views.create_post, name='create_post'),
+
+    # user-related routes
+    path('<str:username>', views.profile, name='profile'),
 ]
