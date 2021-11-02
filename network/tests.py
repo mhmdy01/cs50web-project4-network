@@ -1,4 +1,5 @@
 from django.test import TestCase, Client
+from django.db.models import Max
 
 from .models import User, Post
 
@@ -169,6 +170,78 @@ class PostTests(TestCase):
         # POV: db state
         total_after = Post.objects.count()
         self.assertEqual(total_after, total_before + 1)
+
+    def test_edit_post_fails_unauthorized(self):
+        """Check that editing a post fails if current user isn't logged in"""
+        p = Post.objects.get(pk=1)
+        content = self.post_to_add['content'] + ' updated...!!!'
+
+        c = Client()
+        response = c.put(f'/posts/{p.id}/edit', {'content': content})
+
+        self.assertEqual(response.status_code, 401)
+    
+    def test_edit_post_fails_notallowed(self):
+        """Check that editing a post fails if request method isn't PUT"""
+        p = Post.objects.get(pk=1)
+        content = self.post_to_add['content'] + ' updated...!!!'
+
+        # MUST LOGIN FIRST
+        c = Client()
+        c.login(**self.credentials)
+        response = c.post(f'/posts/{p.id}/edit', {'content': content})
+
+        self.assertEqual(response.status_code, 405)
+
+    def test_edit_post_fails_notexist(self):
+        """Check that editing a post fails if post doesn't exist in db"""
+        max_id = Post.objects.all().aggregate(Max('id')).get('id__max')
+        content = self.post_to_add['content'] + ' updated...!!!'
+
+        # MUST LOGIN FIRST
+        c = Client()
+        c.login(**self.credentials)
+
+        response = c.put(f'/posts/{max_id + 1}/edit', {'content': content})
+
+        self.assertEqual(response.status_code, 404)
+    
+    def test_edit_post_fails_notowner(self):
+        """Check that editing a post fails if current user isn't post owner"""
+        p = Post.objects.get(pk=1)
+        content = self.post_to_add['content'] + ' updated...!!!'
+
+        # MUST LOGIN FIRST (BUT USING DIFFERENT CREDENTIALS)
+        # MANALLY FOR NOW BECAUSE EDITING (setUp method) WOULD BREAK OTHER TESTS
+        # TODO/refactor: update setUp and other tests
+        c = Client()
+        credentials = {'username': 'bar', 'password': 'bar'}
+        User.objects.create_user(**credentials)
+        c.login(**credentials)
+
+        response = c.put(f'/posts/{p.id}/edit', {'content': content})
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_edit_post_works(self):
+        """Check that logged in users can edit their own posts"""
+        p = Post.objects.get(pk=1)
+        content = self.post_to_add['content'] + ' updated...!!!'
+
+        # MUST LOGIN FIRST
+        c = Client()
+        c.login(**self.credentials)
+
+        # PUT requests need a content-type header
+        # since you're sending (and your server is expecting) json data
+        # which is different form default (x=a&y=b...)
+        response = c.put(f'/posts/{p.id}/edit', {"content": content}, content_type='application/json')
+
+        # POV: response/template/view
+        self.assertEqual(response.status_code, 200)
+
+        # POV: db
+        self.assertEqual(Post.objects.get(pk=1).content, content)
 
 class UserProfile(TestCase):
     def setUp(self):

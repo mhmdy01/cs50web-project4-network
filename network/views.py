@@ -1,3 +1,5 @@
+import json
+
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
 from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed, Http404
@@ -88,3 +90,29 @@ def create_post(request):
     p = Post.objects.create(content=content, user=request.user)
 
     return redirect(reverse('index'))
+
+def edit_post(request, post_id):
+    # reject non-authenticated requests (ie. user not logged-in)
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+    # only accept PUT requests
+    if request.method != 'PUT':
+        return HttpResponseNotAllowed(['PUT'])
+
+    # read post from db (and handle case of notfound)
+    try:
+        post = Post.objects.get(pk=post_id)
+    except Post.DoesNotExist:
+        raise Http404()
+
+    # check if current user is post owner
+    if request.user != post.user:
+        return HttpResponse('Unauthorized', status=401)
+
+    # load request data and replace post content with it
+    data = json.loads(request.body)
+    updated_content = data.get('content')
+    post.content = updated_content
+    post.save()
+    
+    return HttpResponse(status=200)
