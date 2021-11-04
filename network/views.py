@@ -2,7 +2,7 @@ import json
 
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed, Http404
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed, Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -115,4 +115,10 @@ def edit_post(request, post_id):
     post.content = updated_content
     post.save()
     
-    return HttpResponse(status=200)
+    # DON'T SEND WHOLE MODEL INSTANCE
+    # cuz it requires more config to work (serialization... which isn't too straightforward)
+    # return JsonResponse({'post': post})
+
+    # instead send requird field (content after updating) for now
+    # at the end, it's what all your frontend needs/uses
+    return JsonResponse({'content': post.content})
