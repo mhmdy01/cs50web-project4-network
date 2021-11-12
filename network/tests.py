@@ -268,3 +268,110 @@ class UserProfile(TestCase):
         response = c.get(f'/{self.credentials["username"] + "s"}')
 
         self.assertEqual(response.status_code, 404)
+
+class UserFriendsFollowers(TestCase):
+    def setUp(self):
+        """add some users to db and make them follow each other"""
+        self.foo_credentials = { 'username': 'foo',  'password': 'foo' }
+        self.bar_credentials = { 'username': 'bar',  'password': 'bar' }
+        self.baz_credentials = { 'username': 'baz',  'password': 'baz' }
+        foo = User.objects.create_user(**self.foo_credentials)
+        bar = User.objects.create_user(**self.bar_credentials)
+        baz = User.objects.create_user(**self.baz_credentials)
+
+        # when foo follows bar
+        # bar is a friend to foo, foo is a follower to bar
+        foo.friends.add(bar)
+        bar.followers.add(foo)
+
+        # when baz follows bar
+        # bar is a friend to baz, baz is a follower to bar
+        baz.friends.add(bar)
+        bar.followers.add(baz)
+
+    def test_friends_followers_relation_when_follow(self):
+        """Check that when user A follows user B, user A friends count increases and
+        User B followers count increases."""
+        foo = User.objects.get(username='foo')
+        bar = User.objects.get(username='bar')
+        baz = User.objects.get(username='baz')
+
+        self.assertEqual(foo.friends.count(), 1)    #bar
+        self.assertEqual(baz.friends.count(), 1)    #bar
+        self.assertEqual(bar.friends.count(), 0)
+        self.assertEqual(foo.followers.count(), 0)
+        self.assertEqual(baz.followers.count(), 0)
+        self.assertEqual(bar.followers.count(), 2)  #foo, bar
+
+    def test_friends_followers_relation_when_unfollow(self):
+        """Check that when user A unfollows user B, user A friends count decreases and
+        User B followers count decreases."""
+        foo = User.objects.get(username='foo')
+        bar = User.objects.get(username='bar')
+
+        foo.friends.remove(bar)
+        bar.followers.remove(foo)
+
+        self.assertEqual(foo.friends.count(), 0)
+        self.assertEqual(bar.followers.count(), 1)  # baz
+
+    def test_follow_fails_notloggedin(self):
+        """Check that following a user fails if current user isn't logged-in"""
+        user_to_follow = User.objects.get(username='bar')
+
+        c = Client()
+        response = c.post(f'/{user_to_follow.username}/follow')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_follow_fails_notexist(self):
+        """Check that following a user fails if user_to_follow doesn't exist in db"""
+        user_to_follow = User.objects.get(username='bar')
+        username = user_to_follow.username + 'i_dont_exist'
+
+        c = Client()
+        # must log in first
+        c.login(**self.foo_credentials)
+        response = c.post(f'/{username}/follow')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_follow_fails_isself(self):
+        """Check that following a user fails if user_to_follow is same as current user"""
+        user_to_follow = User.objects.get(username='foo')
+
+        c = Client()
+        # must log in first
+        c.login(**self.foo_credentials)
+        response = c.post(f'/{user_to_follow.username}/follow')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_follow_fails_alreadyfollowing(self):
+        """Check that following a user fails if user_to_follow is already followed by current user"""
+        current_user = User.objects.get(username='foo')
+        user_to_follow = User.objects.get(username='bar')
+
+        c = Client()
+        # must log in first
+        c.login(**self.foo_credentials)
+        response = c.post(f'/{user_to_follow.username}/follow')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_follow_works(self):
+        """Check that logged-in users can follow other users"""
+        current_user = User.objects.get(username='bar')
+        user_to_follow = User.objects.get(username='foo')
+
+        c = Client()
+        # must log in first
+        c.login(**self.bar_credentials)
+        response = c.post(f'/{user_to_follow.username}/follow')
+
+        # pov: response/view/context
+        self.assertEqual(response.status_code, 200)
+
+        # pov: db
+        self.assertEqual(current_user.friends.count(), 1)
+        self.assertEqual(user_to_follow.followers.count(), 1)

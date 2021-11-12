@@ -2,7 +2,7 @@ import json
 
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed, Http404, JsonResponse
+from django.http import HttpResponse, HttpResponseRedirect, HttpResponseNotAllowed, Http404, JsonResponse, HttpResponseBadRequest
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
@@ -122,3 +122,36 @@ def edit_post(request, post_id):
     # instead send requird field (content after updating) for now
     # at the end, it's what all your frontend needs/uses
     return JsonResponse({'content': post.content})
+
+def follow(request, username):
+    # reject non-authenticated requests (ie. user not logged-in)
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+    # only accept POST requests
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    # read user to follow from db (and handle case of notfound)
+    try:
+        user_to_follow = User.objects.get(username=username)
+    except User.DoesNotExist:
+        raise Http404()
+
+    # users can't follow themselves
+    if user_to_follow == request.user:
+        return HttpResponseBadRequest("You can't follow yourself!")
+
+    # users can't follow users they already follow!
+    if request.user.friends.filter(pk=user_to_follow.id).exists():
+        return HttpResponseBadRequest(f"You're already following {user_to_follow.username}")
+
+    # when foo follows bar
+    # bar is a friend to foo, foo is a follower to bar
+    request.user.friends.add(user_to_follow)
+    user_to_follow.followers.add(request.user)
+
+    # TODO/response: redirect to profile
+    # return redirect(reverse('profile', kwargs={'username': username}))
+    # BUT FOR NOW..
+    # http 200 (just to pass tests)
+    return HttpResponse()

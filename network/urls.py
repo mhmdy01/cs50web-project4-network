@@ -15,4 +15,5 @@ urlpatterns = [
 
     # user-related routes
     path('<str:username>', views.profile, name='profile'),
+    path('<str:username>/follow', views.follow, name='follow'),
 ]
