@@ -20,11 +20,16 @@ def profile(request, username):
         user = User.objects.get(username=username)
     except User.DoesNotExist:
         raise Http404()
-    
     user_posts = user.posts.all()
+
+    # control when to show follow button
+    can_follow = request.user.is_authenticated and request.user != user
+    # TODO: can_unfollow
+
     return render(request, 'network/profile.html', {
         'user': user,
-        'posts': user_posts
+        'posts': user_posts,
+        'can_follow': can_follow,
     })
 
 def login_view(request):
@@ -150,8 +155,5 @@ def follow(request, username):
     request.user.friends.add(user_to_follow)
     user_to_follow.followers.add(request.user)
 
-    # TODO/response: redirect to profile
-    # return redirect(reverse('profile', kwargs={'username': username}))
-    # BUT FOR NOW..
-    # http 200 (just to pass tests)
-    return HttpResponse()
+    # redirect to user_to_follow profile
+    return redirect(reverse('profile', kwargs={'username': username}))
