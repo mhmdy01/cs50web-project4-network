@@ -22,14 +22,29 @@ def profile(request, username):
         raise Http404()
     user_posts = user.posts.all()
 
+    # check if current user is already following the user whose profile is shown
+    is_following = (
+        request.user.is_authenticated
+        and request.user.friends.filter(pk=user.id).exists()
+    )
     # control when to show follow button
-    can_follow = request.user.is_authenticated and request.user != user
-    # TODO: can_unfollow
+    can_follow = (
+        request.user.is_authenticated
+        and request.user != user
+        and not is_following
+    )
+    # control when to show unfollow button
+    can_unfollow = (
+        request.user.is_authenticated
+        and request.user != user
+        and is_following
+    )
 
     return render(request, 'network/profile.html', {
         'user': user,
         'posts': user_posts,
         'can_follow': can_follow,
+        'can_unfollow': can_unfollow,
     })
 
 def login_view(request):

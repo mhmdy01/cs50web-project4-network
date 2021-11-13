@@ -12,6 +12,11 @@
                 {% csrf_token %}
                 <input type="submit" value="Follow" class="btn btn-outline-primary">
             </form>
+        {% elif can_unfollow %}
+            <form action="{% url 'unfollow' user.username %}" method="post">
+                {% csrf_token %}
+                <input type="submit" value="Unfollow" class="btn btn-outline-danger">
+            </form>
         {% endif %}
     </div>
     <hr>
