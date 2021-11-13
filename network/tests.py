@@ -375,3 +375,66 @@ class UserFriendsFollowers(TestCase):
         # pov: db
         self.assertEqual(current_user.friends.count(), 1)
         self.assertEqual(user_to_follow.followers.count(), 1)
+
+    def test_unfollow_fails_notloggedin(self):
+        """Check that unfollowing a user fails if current user isn't logged-in"""
+        current_user = None
+        user_to_unfollow = 'bar'
+
+        c = Client()
+        response = c.post(f'/{user_to_unfollow}/unfollow')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_unfollow_fails_notexist(self):
+        """Check that ufollowing a user fails if user_to_unfollow doesn't exist in db"""
+        current_user = 'foo'
+        user_to_unfollow = 'i_dont_exist'
+
+        c = Client()
+        # must log in first
+        c.login(**self.foo_credentials)
+        response = c.post(f'/{user_to_unfollow}/unfollow')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_unfollow_fails_isself(self):
+        """Check that unfollowing a user fails if user_to_unfollow is same as current user"""
+        current_user = 'foo'
+        user_to_unfollow = current_user
+
+        c = Client()
+        # must log in first
+        c.login(**self.foo_credentials)
+        response = c.post(f'/{user_to_unfollow}/unfollow')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_unfollow_fails_notfollowing(self):
+        """Check that unfollowing a user fails if user_to_unfollow isn't already followed by current user"""
+        current_user = 'bar'
+        user_to_unfollow = 'foo'
+
+        c = Client()
+        # must log in first
+        c.login(**self.bar_credentials)
+        response = c.post(f'/{user_to_unfollow}/unfollow')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_unfollow_works(self):
+        """Check that logged-in users can unfollow users they are following"""
+        current_user = User.objects.get(username='foo')
+        user_to_unfollow = User.objects.get(username='bar')
+
+        c = Client()
+        # must log in first
+        c.login(**self.foo_credentials)
+        response = c.post(f'/{user_to_unfollow.username}/unfollow', follow=True)
+
+        # pov: response/view/context
+        self.assertEqual(response.status_code, 200)
+
+        # pov: db
+        self.assertEqual(current_user.friends.count(), 0)
+        self.assertEqual(user_to_unfollow.followers.count(), 1)

@@ -157,3 +157,33 @@ def follow(request, username):
 
     # redirect to user_to_follow profile
     return redirect(reverse('profile', kwargs={'username': username}))
+
+def unfollow(request, username):
+    # reject non-authenticated requests (ie. user not logged-in)
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+    # only accept POST requests
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    # read user_to_unfollow from db (and handle case of notfound)
+    try:
+        user_to_unfollow = User.objects.get(username=username)
+    except User.DoesNotExist:
+        raise Http404()
+
+    # users can't follow themselves
+    if user_to_unfollow == request.user:
+        return HttpResponseBadRequest("You can't unfollow yourself!")
+
+    # users can't unfollow users they aren't friends with! (ie. aren't following)
+    if not request.user.friends.filter(pk=user_to_unfollow.id).exists():
+        return HttpResponseBadRequest(f"You can't unfollow {user_to_unfollow.username} as you aren't friends with them.")
+
+    # when foo unfollows bar
+    # bar is no longer a friend to foo, foo is no longer a follower to bar
+    request.user.friends.remove(user_to_unfollow)
+    user_to_unfollow.followers.remove(request.user)
+
+    # redirect to user_to_unfollow profile
+    return redirect(reverse('profile', kwargs={'username': username}))
