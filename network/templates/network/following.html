@@ -1,0 +1,33 @@
+{% extends "network/layout.html" %}
+
+{% block body %}
+    <h1>Friends Posts</h1>
+    <hr>
+    <div>
+        {% for post in posts %}
+            <div class="box post">
+                <div style="display: none;">
+                    <form action="{% url 'edit_post' post.id %}" method="" class="edit-post-form">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <textarea required name="content" class="form-control" rows="3"></textarea>
+                        </div>
+                        <input type="submit" value="Save" class="btn btn-primary btn-sm">
+                        <button type="button" class="btn btn-danger btn-sm cancel-edit-post">Cancel</button>
+                    </form>
+                </div>
+                <div>
+                    <p>{{ post.content }}</p>
+                    {% if request.user == post.user %}
+                        <button type="button" class="btn btn-primary btn-sm edit-post">Edit</button>
+                    {% endif %}
+                    <div>
+                        <a href="{% url 'profile' post.user.username %}">{{ post.user }}</a>
+                        |
+                        <span>{{ post.updated_at }}</span>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endblock %}

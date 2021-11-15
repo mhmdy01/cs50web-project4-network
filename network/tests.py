@@ -438,3 +438,48 @@ class UserFriendsFollowers(TestCase):
         # pov: db
         self.assertEqual(current_user.friends.count(), 0)
         self.assertEqual(user_to_unfollow.followers.count(), 1)
+
+class UserFriendsPostsTests(TestCase):
+    def setUp(self):
+        """Create new user and posts in db"""
+        self.foo_credentials = { 'username': 'foo',  'password': 'foo' }
+        self.bar_credentials = { 'username': 'bar',  'password': 'bar' }
+        self.baz_credentials = { 'username': 'baz',  'password': 'baz' }
+
+        # create some users
+        foo = User.objects.create_user(**self.foo_credentials)
+        bar = User.objects.create_user(**self.bar_credentials)
+        baz = User.objects.create_user(**self.baz_credentials)
+
+        # create some friends/followers
+        foo.friends.add(bar)
+        bar.followers.add(foo)
+
+        foo.friends.add(baz)
+        baz.followers.add(foo)
+
+        # create some posts
+        posts_to_add = [f'post #{i + 1}' for i in range(5)]
+        for post_content in posts_to_add:
+            Post.objects.create(content=post_content, user=bar)
+            Post.objects.create(content=post_content, user=baz)
+
+    def test_friends_posts_page_fails_notloggedin(self):
+        """Check that visting friends post page fails if current user isn't logged-in"""
+        c = Client()
+        response = c.get('/following')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_friends_posts_page_works(self):
+        """Check that logged-in users can visit a page to view the posts created by their friends"""
+        # current_user = 'foo'
+        # friends = 'bar', 'baz'
+
+        c = Client()
+        # must login first
+        c.login(**self.foo_credentials)
+        response = c.get('/following')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['posts'].count(), 10) # bar_posts + baz_posts

@@ -202,3 +202,16 @@ def unfollow(request, username):
 
     # redirect to user_to_unfollow profile
     return redirect(reverse('profile', kwargs={'username': username}))
+
+def friends_posts(request):
+    """View posts created by current user friends"""
+    # only available for logged-in users
+    if not request.user.is_authenticated:
+        return HttpResponse(status=401)
+
+    # find posts whose owners have current user as a follower
+    posts = Post.objects.filter(user__followers=request.user)
+
+    return render(request, 'network/following.html', {
+        'posts': posts,
+    })
