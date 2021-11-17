@@ -7,12 +7,18 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 
 from .models import User, Post
-
+from .utils import get_page
 
 def index(request):
     posts = Post.objects.all()
+    page_number = request.GET.get('page', 1)
+
+    page = get_page(posts, page_number)
+    if page is None:
+        raise Http404()
+
     return render(request, "network/index.html", {
-        'posts': posts,
+        'page': page,
     })
 
 def profile(request, username):
@@ -20,7 +26,13 @@ def profile(request, username):
         user = User.objects.get(username=username)
     except User.DoesNotExist:
         raise Http404()
+
     user_posts = user.posts.all()
+    page_number = request.GET.get('page', 1)
+
+    page = get_page(user_posts, page_number)
+    if page is None:
+        raise Http404()
 
     # check if current user is already following the user whose profile is shown
     is_following = (
@@ -42,7 +54,7 @@ def profile(request, username):
 
     return render(request, 'network/profile.html', {
         'user': user,
-        'posts': user_posts,
+        'page': page,
         'can_follow': can_follow,
         'can_unfollow': can_unfollow,
     })
@@ -211,7 +223,12 @@ def friends_posts(request):
 
     # find posts whose owners have current user as a follower
     posts = Post.objects.filter(user__followers=request.user)
+    page_number = request.GET.get('page', 1)
+
+    page = get_page(posts, page_number)
+    if page is None:
+        raise Http404()
 
     return render(request, 'network/following.html', {
-        'posts': posts,
+        'page': page,
     })

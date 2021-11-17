@@ -1,4 +1,4 @@
-{% extends "network/layout.html" %}
+{% extends "network/pagination.html" %}
 
 {% block body %}
     <h1>Profile: {{ user.username }}</h1>
@@ -22,18 +22,7 @@
     <hr>
     <div>
         <h2>Posts</h2>
-        {% for post in posts %}
-            <div class="box">
-                <div>{{ post.content }}</div>
-                {% if request.user == post.user %}
-                    <a href="#">Edit</a>
-                {% endif %}
-                <div>
-                    <a href="{% url 'profile' post.user.username %}">{{ post.user }}</a>
-                    |
-                    <span>{{ post.updated_at }}</span>
-                </div>
-            </div>
-        {% endfor %}
+
+        {{ block.super }}
     </div>
 {% endblock %}
