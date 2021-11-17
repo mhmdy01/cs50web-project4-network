@@ -245,6 +245,11 @@ class PostTests(TestCase):
         # POV: db
         self.assertEqual(Post.objects.get(pk=1).content, content)
 
+    def test_post_ordering_correct(self):
+        """Check that most recent posts always appear first"""
+        first_post = Post.objects.first()
+        self.assertEqual(first_post._meta.ordering[0], '-created_at')
+
 class UserProfile(TestCase):
     def setUp(self):
         """Create new user and posts in db"""

@@ -16,5 +16,9 @@ class Post(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posts')
 
+    class Meta:
+        # return posts in reverse chronological order (ie. most recent first)
+        ordering = ['-created_at']
+
     def __str__(self):
         return f'Post ({self.id}): {self.content[:50]}'
