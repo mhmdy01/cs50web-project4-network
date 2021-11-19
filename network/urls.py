@@ -13,6 +13,7 @@ urlpatterns = [
     path('posts/create', views.create_post, name='create_post'),
     path('posts/<int:post_id>/edit', views.edit_post, name='edit_post'),
     path('following', views.friends_posts, name='following'),
+    path('posts/<int:post_id>/like', views.like_post, name='like_post'),
 
     # user-related routes
     path('<str:username>', views.profile, name='profile'),

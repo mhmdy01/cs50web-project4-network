@@ -232,3 +232,29 @@ def friends_posts(request):
     return render(request, 'network/following.html', {
         'page': page,
     })
+
+def like_post(request, post_id):
+    # reject non-authenticated requests (ie. user not logged-in)
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+    # only accept POST requests
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    # read post from db (and handle case of notfound)
+    try:
+        post_to_like = Post.objects.get(pk=post_id)
+    except Post.DoesNotExist:
+        raise Http404()
+
+    # check if current user already liked the post
+    # because user can't like a post twice!
+    if request.user.likes.filter(pk=post_to_like.id).exists():
+        return HttpResponseBadRequest("You already liked that post.")
+
+    # update post likes
+    post_to_like.fans.add(request.user)
+
+    # for now: return dummy response to validate tests
+    return HttpResponse()
+    # TODO: how to redirect @last template/view url

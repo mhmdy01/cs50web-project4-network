@@ -567,3 +567,91 @@ class PaginationTests(TestCase):
     # TODO
     def test_pagination_invalid_page_number(self):
         """Check that page_number must be numeric value"""
+
+class PostLikesTests(TestCase):
+    def setUp(self):
+        """Create some users and posts in db and like some posts"""
+        self.foo_credentials = { 'username': 'foo',  'password': 'foo' }
+        self.bar_credentials = { 'username': 'bar',  'password': 'bar' }
+        self.baz_credentials = { 'username': 'baz',  'password': 'baz' }
+
+        # create some users
+        foo = User.objects.create_user(**self.foo_credentials)
+        bar = User.objects.create_user(**self.bar_credentials)
+        baz = User.objects.create_user(**self.baz_credentials)
+
+        # create some posts
+        posts_to_add = [f'post #{i + 1}' for i in range(5)]
+        for post_content in posts_to_add:
+            Post.objects.create(content=post_content, user=bar)
+
+        # add some likes
+        p = Post.objects.first()
+        baz.likes.add(p)
+
+    def test_like_post_likes_count(self):
+        """Check that when a user likes a post the post likes count increases"""
+        current_user = User.objects.get(username='foo')
+        post_to_like = Post.objects.first()
+
+        current_user.likes.add(post_to_like)
+
+        self.assertEqual(current_user.likes.count(), 1)
+        self.assertEqual(post_to_like.fans.count(), 2) # baz, foo
+
+    def test_unlike_post_likes_count(self):
+        """Check that when a user unlikes a post (they already liked) the post likes count decreases"""
+        current_user = User.objects.get(username='baz')
+        post_to_unlike = Post.objects.first()
+
+        current_user.likes.remove(post_to_unlike)
+
+        self.assertEqual(current_user.likes.count(), 0)
+        self.assertEqual(post_to_unlike.fans.count(), 0)
+
+    def test_like_post_fails_notloggedin(self):
+        """Check that liking a post fails if current user isn't logged-in"""
+        current_user = 'i_dont_exist'
+        post_to_like = Post.objects.first()
+
+        c = Client()
+        response = c.post(f'/posts/{post_to_like.id}/like')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_like_post_fails_notexist(self):
+        """Check that liking a post fails if post doesn't exist in db"""
+        current_user = 'foo'
+        max_post_id = Post.objects.all().aggregate(Max('id')).get('id__max')
+        post_to_like_id = max_post_id + 1
+
+        c = Client()
+        # MUST LOGIN FIRST
+        c.login(**self.foo_credentials)
+        response = c.post(f'/posts/{post_to_like_id}/like')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_like_post_fails_alreadyliked(self):
+        """Check that liking a post fails if current user already liked the post"""
+        current_user = 'baz'
+        post_to_like = Post.objects.first()
+
+        c = Client()
+        # MUST LOGIN FIRST
+        c.login(**self.baz_credentials)
+        response = c.post(f'/posts/{post_to_like.id}/like')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_like_post_works(self):
+        """Check that logged-in users can like (other users?) posts"""
+        current_user = 'foo'
+        post_to_like = Post.objects.first()
+
+        c = Client()
+        # MUST LOGIN FIRST
+        c.login(**self.foo_credentials)
+        response = c.post(f'/posts/{post_to_like.id}/like')
+
+        self.assertEqual(response.status_code, 200)

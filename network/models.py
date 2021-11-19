@@ -7,6 +7,9 @@ class User(AbstractUser):
     # rsa: https://docs.djangoproject.com/en/3.2/ref/models/fields/#django.db.models.ManyToManyField
     friends = models.ManyToManyField('self', blank=True, symmetrical=False, related_name='followers')
 
+    # keep track of posts liked by user
+    likes = models.ManyToManyField('Post', blank=True, related_name='fans')
+
 class Post(models.Model):
     """Represent a new post that has a content, timestamps (created/updated)
     and a user
