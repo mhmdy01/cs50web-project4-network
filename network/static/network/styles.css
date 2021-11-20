@@ -4,3 +4,14 @@
     padding: 10px;
     margin-bottom: 5px;
 }
+
+.faheart {
+    background: none;
+    padding: 0px;
+    border: none;
+}
+
+.likes-container {
+    display: flex;
+    column-gap: 10px;
+}

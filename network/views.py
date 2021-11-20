@@ -1,4 +1,5 @@
 import json
+from urllib.parse import urlparse
 
 from django.contrib.auth import authenticate, login, logout
 from django.db import IntegrityError
@@ -255,6 +256,14 @@ def like_post(request, post_id):
     # update post likes
     post_to_like.fans.add(request.user)
 
-    # for now: return dummy response to validate tests
-    return HttpResponse()
-    # TODO: how to redirect @last template/view url
+    # redirect @last template/view url
+    last_url = str(request.META.get('HTTP_REFERER', ''))
+    last_url_domain = urlparse(last_url).netloc
+    current_url_domain = urlparse(request.get_raw_uri()).netloc
+
+    # BUT MUST VALIDATE IT FIRST
+    # last url can't be empty or external url
+    if not last_url or last_url_domain != current_url_domain:
+        return HttpResponseBadRequest()
+
+    return redirect(last_url)

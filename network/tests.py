@@ -652,6 +652,6 @@ class PostLikesTests(TestCase):
         c = Client()
         # MUST LOGIN FIRST
         c.login(**self.foo_credentials)
-        response = c.post(f'/posts/{post_to_like.id}/like')
+        response = c.post(f'/posts/{post_to_like.id}/like', HTTP_REFERER='http://testserver/', follow=True)
 
         self.assertEqual(response.status_code, 200)
