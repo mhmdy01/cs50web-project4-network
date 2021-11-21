@@ -22,12 +22,21 @@
                     {% endif %}
 
                     <div class="likes-container">
-                        <form action="{% url 'like_post' post.id %}" method="post">
-                            {% csrf_token %}
-                            <button type="submit" class="faheart">
-                                <i class="fa-regular fa-heart"></i>
-                            </button>
-                        </form>
+                        {% if post in request.user.likes.all %}
+                            <form action="{% url 'unlike_post' post.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="faheart faheart-red">
+                                    <i class="fa-solid fa-heart"></i>
+                                </button>
+                            </form>
+                        {% else %}
+                            <form action="{% url 'like_post' post.id %}" method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="faheart">
+                                    <i class="fa-regular fa-heart"></i>
+                                </button>
+                            </form>
+                        {% endif %}
                         <span>{{ post.fans.count }}</span>
                     </div>
 

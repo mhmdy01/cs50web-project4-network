@@ -11,6 +11,10 @@
     border: none;
 }
 
+.faheart-red {
+    color: red;
+}
+
 .likes-container {
     display: flex;
     column-gap: 10px;
