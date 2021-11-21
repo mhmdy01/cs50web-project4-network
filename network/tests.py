@@ -655,3 +655,50 @@ class PostLikesTests(TestCase):
         response = c.post(f'/posts/{post_to_like.id}/like', HTTP_REFERER='http://testserver/', follow=True)
 
         self.assertEqual(response.status_code, 200)
+
+    def test_unlike_post_fails_notloggedin(self):
+        """Check that unliking a post fails if current user isn't logged-in"""
+        current_user = 'i_dont_exist'
+        post_to_unlike = Post.objects.first()
+
+        c = Client()
+        response = c.post(f'/posts/{post_to_unlike.id}/unlike')
+
+        self.assertEqual(response.status_code, 401)
+
+    def test_unlike_post_fails_notexist(self):
+        """Check that unliking a post fails if post doesn't exist in db"""
+        current_user = 'foo'
+        max_post_id = Post.objects.all().aggregate(Max('id')).get('id__max')
+        post_to_unlike_id = max_post_id + 1
+
+        c = Client()
+        # MUST LOGIN FIRST
+        c.login(**self.foo_credentials)
+        response = c.post(f'/posts/{post_to_unlike_id}/unlike')
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_unlike_post_fails_notlikedyet(self):
+        """Check that unliking a post fails if current user hasn't liked the post yet"""
+        current_user = 'foo'
+        post_to_unlike = Post.objects.first()
+
+        c = Client()
+        # MUST LOGIN FIRST
+        c.login(**self.foo_credentials)
+        response = c.post(f'/posts/{post_to_unlike.id}/unlike')
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_unlike_post_works(self):
+        """Check that logged-in users can unlike the posts they already liked"""
+        current_user = 'baz'
+        post_to_unlike = Post.objects.first()
+
+        c = Client()
+        # MUST LOGIN FIRST
+        c.login(**self.baz_credentials)
+        response = c.post(f'/posts/{post_to_unlike.id}/unlike', HTTP_REFERER='http://testserver/', follow=True)
+
+        self.assertEqual(response.status_code, 200)

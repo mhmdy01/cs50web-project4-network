@@ -267,3 +267,40 @@ def like_post(request, post_id):
         return HttpResponseBadRequest()
 
     return redirect(last_url)
+
+def unlike_post(request, post_id):
+    # reject non-authenticated requests (ie. user not logged-in)
+    if not request.user.is_authenticated:
+        return HttpResponse('Unauthorized', status=401)
+    # only accept POST requests
+    if request.method != 'POST':
+        return HttpResponseNotAllowed(['POST'])
+
+    # read post from db (and handle case of notfound)
+    try:
+        post_to_unlike = Post.objects.get(pk=post_id)
+    except Post.DoesNotExist:
+        raise Http404()
+
+    # check if current user already liked the post
+    # because user can't unlike a post they hadn't liked yet!
+    if not request.user.likes.filter(pk=post_to_unlike.id).exists():
+        return HttpResponseBadRequest("You hadn't liked that post yet.")
+
+    # update post likes
+    # which query is better?
+    request.user.likes.remove(post_to_unlike)
+    # post_to_unlike.fans.remove(request.user)
+
+    # redirect @last template/view url
+    # TODO: refactor this logic into util fn?
+    last_url = str(request.META.get('HTTP_REFERER', ''))
+    last_url_domain = urlparse(last_url).netloc
+    current_url_domain = urlparse(request.get_raw_uri()).netloc
+
+    # BUT MUST VALIDATE IT FIRST
+    # last url can't be empty or external url
+    if not last_url or last_url_domain != current_url_domain:
+        return HttpResponseBadRequest()
+
+    return redirect(last_url)
