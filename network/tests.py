@@ -571,134 +571,115 @@ class PaginationTests(TestCase):
 class PostLikesTests(TestCase):
     def setUp(self):
         """Create some users and posts in db and like some posts"""
-        self.foo_credentials = { 'username': 'foo',  'password': 'foo' }
-        self.bar_credentials = { 'username': 'bar',  'password': 'bar' }
-        self.baz_credentials = { 'username': 'baz',  'password': 'baz' }
+        # config db
+        # db: create some users
+        foo_credentials = { 'username': 'foo',  'password': 'foo' }
+        bar_credentials = { 'username': 'bar',  'password': 'bar' }
+        baz_credentials = { 'username': 'baz',  'password': 'baz' }
 
-        # create some users
-        foo = User.objects.create_user(**self.foo_credentials)
-        bar = User.objects.create_user(**self.bar_credentials)
-        baz = User.objects.create_user(**self.baz_credentials)
+        foo = User.objects.create_user(**foo_credentials)
+        bar = User.objects.create_user(**bar_credentials)
+        baz = User.objects.create_user(**baz_credentials)
 
-        # create some posts
+        # db: create some posts
         posts_to_add = [f'post #{i + 1}' for i in range(5)]
         for post_content in posts_to_add:
             Post.objects.create(content=post_content, user=bar)
 
-        # add some likes
-        p = Post.objects.first()
-        baz.likes.add(p)
+        # db: add some likes
+        post_to_like_and_unlike = Post.objects.first()
+        baz.likes.add(post_to_like_and_unlike)
+
+        # client/server config
+        # instantiate
+        self.client = Client()
+
+        # client: identify resources
+        self.post_to_like = post_to_like_and_unlike
+        self.post_to_unlike = post_to_like_and_unlike
+
+        id_of_post_that_exists = post_to_like_and_unlike.id
+        id_of_post_that_doesnt_exist = Post.objects.all().aggregate(Max('id')).get('id__max') + 1
+
+        self.id_of_post_to_like_that_exists = id_of_post_that_exists
+        self.id_of_post_to_like_that_doesnt_exist = id_of_post_that_doesnt_exist
+
+        self.id_of_post_to_unlike_that_exists = id_of_post_that_exists
+        self.id_of_post_to_unlike_that_doesnt_exist = id_of_post_that_doesnt_exist
+
+        # client: identify users
+        self.user_who_already_liked_post = baz
+        self.login_credentials_of_user_who_already_liked_post = baz_credentials
+
+        self.user_who_hadnt_liked_post_yet = foo
+        self.login_credentials_of_user_who_hadnt_liked_post_yet = foo_credentials
 
     def test_like_post_likes_count(self):
         """Check that when a user likes a post the post likes count increases"""
-        current_user = User.objects.get(username='foo')
-        post_to_like = Post.objects.first()
-
-        current_user.likes.add(post_to_like)
-
-        self.assertEqual(current_user.likes.count(), 1)
-        self.assertEqual(post_to_like.fans.count(), 2) # baz, foo
+        self.user_who_hadnt_liked_post_yet.likes.add(self.post_to_like)
+        self.assertEqual(self.user_who_hadnt_liked_post_yet.likes.count(), 1)
+        self.assertEqual(self.post_to_like.fans.count(), 2) # baz, foo
 
     def test_unlike_post_likes_count(self):
         """Check that when a user unlikes a post (they already liked) the post likes count decreases"""
-        current_user = User.objects.get(username='baz')
-        post_to_unlike = Post.objects.first()
-
-        current_user.likes.remove(post_to_unlike)
-
-        self.assertEqual(current_user.likes.count(), 0)
-        self.assertEqual(post_to_unlike.fans.count(), 0)
+        self.user_who_already_liked_post.likes.remove(self.post_to_unlike)
+        self.assertEqual(self.user_who_already_liked_post.likes.count(), 0)
+        self.assertEqual(self.post_to_unlike.fans.count(), 0)
 
     def test_like_post_fails_notloggedin(self):
         """Check that liking a post fails if current user isn't logged-in"""
-        current_user = 'i_dont_exist'
-        post_to_like = Post.objects.first()
-
-        c = Client()
-        response = c.post(f'/posts/{post_to_like.id}/like')
-
+        response = self.client.post(f'/posts/{self.id_of_post_to_like_that_exists}/like')
         self.assertEqual(response.status_code, 401)
 
     def test_like_post_fails_notexist(self):
         """Check that liking a post fails if post doesn't exist in db"""
-        current_user = 'foo'
-        max_post_id = Post.objects.all().aggregate(Max('id')).get('id__max')
-        post_to_like_id = max_post_id + 1
-
-        c = Client()
         # MUST LOGIN FIRST
-        c.login(**self.foo_credentials)
-        response = c.post(f'/posts/{post_to_like_id}/like')
+        self.client.login(**self.login_credentials_of_user_who_hadnt_liked_post_yet)
 
+        response = self.client.post(f'/posts/{self.id_of_post_to_like_that_doesnt_exist}/like')
         self.assertEqual(response.status_code, 404)
 
     def test_like_post_fails_alreadyliked(self):
         """Check that liking a post fails if current user already liked the post"""
-        current_user = 'baz'
-        post_to_like = Post.objects.first()
-
-        c = Client()
         # MUST LOGIN FIRST
-        c.login(**self.baz_credentials)
-        response = c.post(f'/posts/{post_to_like.id}/like')
+        self.client.login(**self.login_credentials_of_user_who_already_liked_post)
 
+        response = self.client.post(f'/posts/{self.id_of_post_to_like_that_exists}/like')
         self.assertEqual(response.status_code, 400)
 
     def test_like_post_works(self):
         """Check that logged-in users can like (other users?) posts"""
-        current_user = 'foo'
-        post_to_like = Post.objects.first()
-
-        c = Client()
         # MUST LOGIN FIRST
-        c.login(**self.foo_credentials)
-        response = c.post(f'/posts/{post_to_like.id}/like', HTTP_REFERER='http://testserver/', follow=True)
+        self.client.login(**self.login_credentials_of_user_who_hadnt_liked_post_yet)
 
+        response = self.client.post(f'/posts/{self.id_of_post_to_like_that_exists}/like', HTTP_REFERER='http://testserver/', follow=True)
         self.assertEqual(response.status_code, 200)
 
     def test_unlike_post_fails_notloggedin(self):
         """Check that unliking a post fails if current user isn't logged-in"""
-        current_user = 'i_dont_exist'
-        post_to_unlike = Post.objects.first()
-
-        c = Client()
-        response = c.post(f'/posts/{post_to_unlike.id}/unlike')
-
+        response = self.client.post(f'/posts/{self.id_of_post_to_unlike_that_exists}/unlike')
         self.assertEqual(response.status_code, 401)
 
     def test_unlike_post_fails_notexist(self):
         """Check that unliking a post fails if post doesn't exist in db"""
-        current_user = 'foo'
-        max_post_id = Post.objects.all().aggregate(Max('id')).get('id__max')
-        post_to_unlike_id = max_post_id + 1
-
-        c = Client()
         # MUST LOGIN FIRST
-        c.login(**self.foo_credentials)
-        response = c.post(f'/posts/{post_to_unlike_id}/unlike')
+        self.client.login(**self.login_credentials_of_user_who_already_liked_post)
 
+        response = self.client.post(f'/posts/{self.id_of_post_to_unlike_that_doesnt_exist}/unlike')
         self.assertEqual(response.status_code, 404)
 
     def test_unlike_post_fails_notlikedyet(self):
         """Check that unliking a post fails if current user hasn't liked the post yet"""
-        current_user = 'foo'
-        post_to_unlike = Post.objects.first()
-
-        c = Client()
         # MUST LOGIN FIRST
-        c.login(**self.foo_credentials)
-        response = c.post(f'/posts/{post_to_unlike.id}/unlike')
+        self.client.login(**self.login_credentials_of_user_who_hadnt_liked_post_yet)
 
+        response = self.client.post(f'/posts/{self.id_of_post_to_unlike_that_exists}/unlike')
         self.assertEqual(response.status_code, 400)
 
     def test_unlike_post_works(self):
         """Check that logged-in users can unlike the posts they already liked"""
-        current_user = 'baz'
-        post_to_unlike = Post.objects.first()
-
-        c = Client()
         # MUST LOGIN FIRST
-        c.login(**self.baz_credentials)
-        response = c.post(f'/posts/{post_to_unlike.id}/unlike', HTTP_REFERER='http://testserver/', follow=True)
+        self.client.login(**self.login_credentials_of_user_who_already_liked_post)
 
+        response = self.client.post(f'/posts/{self.id_of_post_to_unlike_that_exists}/unlike', HTTP_REFERER='http://testserver/', follow=True)
         self.assertEqual(response.status_code, 200)
