@@ -4,7 +4,7 @@
 {% if page %}
     <div>
         {% for post in page %}
-            <div class="box post">
+            <div class="box post" data-id="{{ post.id }}">
                 <div style="display: none;">
                     <form action="{% url 'edit_post' post.id %}" method="" class="edit-post-form">
                         {% csrf_token %}
@@ -22,22 +22,11 @@
                     {% endif %}
 
                     <div class="likes-container">
-                        {% if post in request.user.likes.all %}
-                            <form action="{% url 'unlike_post' post.id %}" method="post">
-                                {% csrf_token %}
-                                <button type="submit" class="faheart faheart-red">
-                                    <i class="fa-solid fa-heart"></i>
-                                </button>
-                            </form>
-                        {% else %}
-                            <form action="{% url 'like_post' post.id %}" method="post">
-                                {% csrf_token %}
-                                <button type="submit" class="faheart">
-                                    <i class="fa-regular fa-heart"></i>
-                                </button>
-                            </form>
-                        {% endif %}
-                        <span>{{ post.fans.count }}</span>
+                        {% comment %}
+                            embed post likes count and like/unlike btn
+                            check: https://stackoverflow.com/questions/48497062/how-to-insert-multiple-django-blocks-into-one-template
+                        {% endcomment %}
+                        {% include 'network/likes.html' with post=post %}
                     </div>
 
                     <div>

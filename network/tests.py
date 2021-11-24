@@ -652,7 +652,7 @@ class PostLikesTests(TestCase):
         c = Client()
         # MUST LOGIN FIRST
         c.login(**self.foo_credentials)
-        response = c.post(f'/posts/{post_to_like.id}/like', HTTP_REFERER='http://testserver/', follow=True)
+        response = c.post(f'/posts/{post_to_like.id}/like')
 
         self.assertEqual(response.status_code, 200)
 
@@ -699,6 +699,6 @@ class PostLikesTests(TestCase):
         c = Client()
         # MUST LOGIN FIRST
         c.login(**self.baz_credentials)
-        response = c.post(f'/posts/{post_to_unlike.id}/unlike', HTTP_REFERER='http://testserver/', follow=True)
+        response = c.post(f'/posts/{post_to_unlike.id}/unlike')
 
         self.assertEqual(response.status_code, 200)

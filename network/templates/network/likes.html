@@ -1,0 +1,21 @@
+{% comment %}
+since we now need to access post likes count and like/unlike btn
+into two different places
+  - inside post content
+  - as response to like/unlike operations
+its better to move these parts into separate template
+and:
+  - render it when sending response
+  - include it when embeding into another template
+{% endcomment %}
+
+{% if post in request.user.likes.all %}
+    <button class="unlike-post faheart faheart-red">
+        <i class="fa-solid fa-heart"></i>
+    </button>
+{% else %}
+    <button class="like-post faheart">
+        <i class="fa-regular fa-heart"></i>
+    </button>
+{% endif %}
+<span>{{ post.fans.count }}</span>
