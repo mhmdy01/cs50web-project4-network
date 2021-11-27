@@ -173,82 +173,81 @@ class PostTests(TestCase):
         total_after = Post.objects.count()
         self.assertEqual(total_after, total_before + 1)
 
-    def test_edit_post_fails_unauthorized(self):
-        """Check that editing a post fails if current user isn't logged in"""
-        p = Post.objects.get(pk=1)
-        content = self.post_to_add['content'] + ' updated...!!!'
-
-        c = Client()
-        response = c.put(f'/posts/{p.id}/edit', {'content': content})
-
-        self.assertEqual(response.status_code, 401)
-    
-    def test_edit_post_fails_notallowed(self):
-        """Check that editing a post fails if request method isn't PUT"""
-        p = Post.objects.get(pk=1)
-        content = self.post_to_add['content'] + ' updated...!!!'
-
-        # MUST LOGIN FIRST
-        c = Client()
-        c.login(**self.credentials)
-        response = c.post(f'/posts/{p.id}/edit', {'content': content})
-
-        self.assertEqual(response.status_code, 405)
-
-    def test_edit_post_fails_notexist(self):
-        """Check that editing a post fails if post doesn't exist in db"""
-        max_id = Post.objects.all().aggregate(Max('id')).get('id__max')
-        content = self.post_to_add['content'] + ' updated...!!!'
-
-        # MUST LOGIN FIRST
-        c = Client()
-        c.login(**self.credentials)
-
-        response = c.put(f'/posts/{max_id + 1}/edit', {'content': content})
-
-        self.assertEqual(response.status_code, 404)
-    
-    def test_edit_post_fails_notowner(self):
-        """Check that editing a post fails if current user isn't post owner"""
-        p = Post.objects.get(pk=1)
-        content = self.post_to_add['content'] + ' updated...!!!'
-
-        # MUST LOGIN FIRST (BUT USING DIFFERENT CREDENTIALS)
-        # MANALLY FOR NOW BECAUSE EDITING (setUp method) WOULD BREAK OTHER TESTS
-        # TODO/refactor: update setUp and other tests
-        c = Client()
-        credentials = {'username': 'bar', 'password': 'bar'}
-        User.objects.create_user(**credentials)
-        c.login(**credentials)
-
-        response = c.put(f'/posts/{p.id}/edit', {'content': content})
-
-        self.assertEqual(response.status_code, 401)
-
-    def test_edit_post_works(self):
-        """Check that logged in users can edit their own posts"""
-        p = Post.objects.get(pk=1)
-        content = self.post_to_add['content'] + ' updated...!!!'
-
-        # MUST LOGIN FIRST
-        c = Client()
-        c.login(**self.credentials)
-
-        # PUT requests need a content-type header
-        # since you're sending (and your server is expecting) json data
-        # which is different form default (x=a&y=b...)
-        response = c.put(f'/posts/{p.id}/edit', {"content": content}, content_type='application/json')
-
-        # POV: response/template/view
-        self.assertEqual(response.status_code, 200)
-
-        # POV: db
-        self.assertEqual(Post.objects.get(pk=1).content, content)
-
     def test_post_ordering_correct(self):
         """Check that most recent posts always appear first"""
         first_post = Post.objects.first()
         self.assertEqual(first_post._meta.ordering[0], '-created_at')
+
+class EditPostTests(TestCase):
+    def setUp(self):
+        """Add two users and a post to db"""
+        # config db
+        # db: create two users
+        foo_credentials = { 'username': 'foo',  'password': 'foo' }
+        bar_credentials = { 'username': 'bar',  'password': 'bar' }
+        foo = User.objects.create_user(**foo_credentials)
+        bar = User.objects.create_user(**bar_credentials)
+
+        # db: create a post
+        p = Post.objects.create(content='some content', user=foo)
+
+        # config client/server
+        # instantiate
+        self.client = Client()
+
+        # client: identify users (and their login credentials)
+        self.user_who_created_post = foo
+        self.login_credentials_of_user_who_created_post = foo_credentials
+
+        self.user_who_didnt_create_post = bar
+        self.login_credentials_of_user_who_didnt_create_post = bar_credentials
+
+        # client: identify resources
+        self.post_to_edit = p
+
+    def test_edit_post_fails_notloggedin(self):
+        """Check that editing a post fails if current user isn't logged in"""
+        new_content = "some new content"
+
+        response = self.client.put(f'/posts/{self.post_to_edit.id}/edit', {'content': new_content})
+        self.assertEqual(response.status_code, 401)
+
+    def test_edit_post_fails_notexist(self):
+        """Check that editing a post fails if post doesn't exist in db"""
+        new_content = "some new content"
+
+        # must login first
+        self.client.login(**self.login_credentials_of_user_who_created_post)
+
+        response = self.client.put(f'/posts/{self.post_to_edit.id + 1014104}/edit', {'content': new_content})
+        self.assertEqual(response.status_code, 404)
+
+    def test_edit_post_fails_notowner(self):
+        """Check that editing a post fails if current user isn't post owner"""
+        new_content = "some new content"
+
+        # must login first
+        self.client.login(**self.login_credentials_of_user_who_didnt_create_post)
+
+        response = self.client.put(f'/posts/{self.post_to_edit.id}/edit', {'content': new_content})
+        self.assertEqual(response.status_code, 401)
+
+    def test_edit_post_works(self):
+        """Check that logged in users can edit their own posts"""
+        new_content = "some new content"
+
+        # must login first
+        self.client.login(**self.login_credentials_of_user_who_created_post)
+
+        # PUT requests need a content-type header
+        # since you're sending (and your server is expecting) json data
+        # which is different form default (x=a&y=b...)
+        response = self.client.put(f'/posts/{self.post_to_edit.id}/edit', {'content': new_content}, content_type='application/json')
+
+        # POV: response/template/view
+        self.assertEqual(response.status_code, 200)
+        # POV: db
+        self.assertEqual(Post.objects.get(pk=1).content, new_content)
 
 class UserProfile(TestCase):
     def setUp(self):
