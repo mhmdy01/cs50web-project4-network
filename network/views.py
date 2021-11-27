@@ -154,7 +154,7 @@ def edit_post(request, post_id):
 
     # instead send requird field (content after updating) for now
     # at the end, it's what all your frontend needs/uses
-    return JsonResponse({'content': post.content})
+    return HttpResponse(post.content)
 
 def follow(request, username):
     # reject non-authenticated requests (ie. user not logged-in)

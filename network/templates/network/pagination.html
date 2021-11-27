@@ -5,35 +5,43 @@
     <div>
         {% for post in page %}
             <div class="box post" data-id="{{ post.id }}">
-                <div style="display: none;">
-                    <form action="{% url 'edit_post' post.id %}" method="" class="edit-post-form">
-                        {% csrf_token %}
-                        <div class="mb-3">
-                            <textarea required name="content" class="form-control" rows="3"></textarea>
-                        </div>
-                        <input type="submit" value="Save" class="btn btn-primary btn-sm">
-                        <button type="button" class="btn btn-danger btn-sm cancel-edit-post">Cancel</button>
-                    </form>
-                </div>
-                <div>
-                    <p>{{ post.content }}</p>
-                    {% if request.user == post.user %}
-                        <button type="button" class="btn btn-primary btn-sm edit-post">Edit</button>
-                    {% endif %}
-
-                    <div class="likes-container">
-                        {% comment %}
-                            embed post likes count and like/unlike btn
-                            check: https://stackoverflow.com/questions/48497062/how-to-insert-multiple-django-blocks-into-one-template
-                        {% endcomment %}
-                        {% include 'network/likes.html' with post=post %}
-                    </div>
-
+                <div class="content-container">
+                    {% comment %}
+                        both divs/views are sent to client
+                        but we will use js to toggle between them
+                    {% endcomment %}
                     <div>
-                        <a href="{% url 'profile' post.user.username %}">{{ post.user }}</a>
-                        |
-                        <span>{{ post.updated_at }}</span>
+                        <form action="" method="" class="edit-post-form">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <textarea required name="content" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div>
+                                <input type="submit" value="Save" class="btn btn-primary btn-sm save-edit-post">
+                                <button type="button" class="btn btn-danger btn-sm cancel-edit-post">Cancel</button>
+                            </div>
+                        </form>
                     </div>
+                    <div>
+                        <p>{{ post.content }}</p>
+                        {% if request.user == post.user %}
+                            <button type="button" class="btn btn-primary btn-sm edit-post">Edit</button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="likes-container">
+                    {% comment %}
+                        embed post likes count and like/unlike btn
+                        check: https://stackoverflow.com/questions/48497062/how-to-insert-multiple-django-blocks-into-one-template
+                    {% endcomment %}
+                    {% include 'network/likes.html' with post=post %}
+                </div>
+
+                <div class="meta-container">
+                    <a href="{% url 'profile' post.user.username %}">{{ post.user }}</a>
+                    |
+                    <span>{{ post.updated_at }}</span>
                 </div>
             </div>
         {% endfor %}
