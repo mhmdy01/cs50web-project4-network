@@ -278,173 +278,136 @@ class UserProfile(TestCase):
 
 class UserFriendsFollowers(TestCase):
     def setUp(self):
-        """add some users to db and make them follow each other"""
-        self.foo_credentials = { 'username': 'foo',  'password': 'foo' }
-        self.bar_credentials = { 'username': 'bar',  'password': 'bar' }
-        self.baz_credentials = { 'username': 'baz',  'password': 'baz' }
-        foo = User.objects.create_user(**self.foo_credentials)
-        bar = User.objects.create_user(**self.bar_credentials)
-        baz = User.objects.create_user(**self.baz_credentials)
+        """add some users to db and make some friend/follower relations"""
+        # config db
+        # db: create some users
+        foo_credentials = { 'username': 'foo',  'password': 'foo' }
+        bar_credentials = { 'username': 'bar',  'password': 'bar' }
+        baz_credentials = { 'username': 'baz',  'password': 'baz' }
+        foo = User.objects.create_user(**foo_credentials)
+        bar = User.objects.create_user(**bar_credentials)
+        baz = User.objects.create_user(**baz_credentials)
 
+        # db: add some friends/followers
         # when foo follows bar
         # bar is a friend to foo, foo is a follower to bar
         foo.friends.add(bar)
         bar.followers.add(foo)
 
-        # when baz follows bar
-        # bar is a friend to baz, baz is a follower to bar
-        baz.friends.add(bar)
-        bar.followers.add(baz)
+        # client/server config
+        # instantiate
+        self.client = Client()
+
+        # client: identify users (current, to follow/unfollow) and their login credentials
+        self.user_to_follow_and_unfollow = User.objects.get(username='bar')
+        self.login_credentials_of_user_to_follow_and_unfollow = bar_credentials
+
+        self.user_who_already_followed_user_to_follow_and_unfollow = foo
+        self.login_credentials_of_user_who_already_followed_user_to_follow_and_unfollow = foo_credentials
+
+        self.user_who_hadnt_followed_user_to_follow_and_unfollow = baz
+        self.login_credentials_of_user_who_hadnt_followed_user_to_follow_and_unfollow = baz_credentials
 
     def test_friends_followers_relation_when_follow(self):
         """Check that when user A follows user B, user A friends count increases and
         User B followers count increases."""
-        foo = User.objects.get(username='foo')
-        bar = User.objects.get(username='bar')
-        baz = User.objects.get(username='baz')
+        self.user_who_hadnt_followed_user_to_follow_and_unfollow.friends.add(self.user_to_follow_and_unfollow)
+        self.user_to_follow_and_unfollow.followers.add(self.user_who_hadnt_followed_user_to_follow_and_unfollow)
 
-        self.assertEqual(foo.friends.count(), 1)    #bar
-        self.assertEqual(baz.friends.count(), 1)    #bar
-        self.assertEqual(bar.friends.count(), 0)
-        self.assertEqual(foo.followers.count(), 0)
-        self.assertEqual(baz.followers.count(), 0)
-        self.assertEqual(bar.followers.count(), 2)  #foo, bar
+        self.assertEqual(self.user_who_already_followed_user_to_follow_and_unfollow.friends.count(), 1)    #bar
+        self.assertEqual(self.user_who_hadnt_followed_user_to_follow_and_unfollow.friends.count(), 1)      #bar
+        self.assertEqual(self.user_to_follow_and_unfollow.followers.count(), 2)  #foo,baz
 
     def test_friends_followers_relation_when_unfollow(self):
         """Check that when user A unfollows user B, user A friends count decreases and
         User B followers count decreases."""
-        foo = User.objects.get(username='foo')
-        bar = User.objects.get(username='bar')
+        self.user_who_already_followed_user_to_follow_and_unfollow.friends.remove(self.user_to_follow_and_unfollow)
+        self.user_to_follow_and_unfollow.followers.remove(self.user_who_already_followed_user_to_follow_and_unfollow)
 
-        foo.friends.remove(bar)
-        bar.followers.remove(foo)
-
-        self.assertEqual(foo.friends.count(), 0)
-        self.assertEqual(bar.followers.count(), 1)  # baz
+        self.assertEqual(self.user_who_already_followed_user_to_follow_and_unfollow.friends.count(), 0)
+        self.assertEqual(self.user_to_follow_and_unfollow.followers.count(), 0)
 
     def test_follow_fails_notloggedin(self):
         """Check that following a user fails if current user isn't logged-in"""
-        user_to_follow = User.objects.get(username='bar')
-
-        c = Client()
-        response = c.post(f'/{user_to_follow.username}/follow')
-
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/follow')
         self.assertEqual(response.status_code, 401)
 
     def test_follow_fails_notexist(self):
         """Check that following a user fails if user_to_follow doesn't exist in db"""
-        user_to_follow = User.objects.get(username='bar')
-        username = user_to_follow.username + 'i_dont_exist'
-
-        c = Client()
         # must log in first
-        c.login(**self.foo_credentials)
-        response = c.post(f'/{username}/follow')
+        self.client.login(**self.login_credentials_of_user_who_hadnt_followed_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username + "i_dont_exist"}/follow')
         self.assertEqual(response.status_code, 404)
 
     def test_follow_fails_isself(self):
         """Check that following a user fails if user_to_follow is same as current user"""
-        user_to_follow = User.objects.get(username='foo')
-
-        c = Client()
         # must log in first
-        c.login(**self.foo_credentials)
-        response = c.post(f'/{user_to_follow.username}/follow')
+        self.client.login(**self.login_credentials_of_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/follow')
         self.assertEqual(response.status_code, 400)
 
     def test_follow_fails_alreadyfollowing(self):
         """Check that following a user fails if user_to_follow is already followed by current user"""
-        current_user = User.objects.get(username='foo')
-        user_to_follow = User.objects.get(username='bar')
-
-        c = Client()
         # must log in first
-        c.login(**self.foo_credentials)
-        response = c.post(f'/{user_to_follow.username}/follow')
+        self.client.login(**self.login_credentials_of_user_who_already_followed_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/follow')
         self.assertEqual(response.status_code, 400)
 
     def test_follow_works(self):
         """Check that logged-in users can follow other users"""
-        current_user = User.objects.get(username='bar')
-        user_to_follow = User.objects.get(username='foo')
-
-        c = Client()
         # must log in first
-        c.login(**self.bar_credentials)
-        response = c.post(f'/{user_to_follow.username}/follow')
+        self.client.login(**self.login_credentials_of_user_who_hadnt_followed_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/follow', follow=True)
         # pov: response/view/context
         self.assertEqual(response.status_code, 200)
-
         # pov: db
-        self.assertEqual(current_user.friends.count(), 1)
-        self.assertEqual(user_to_follow.followers.count(), 1)
+        self.assertEqual(self.user_who_hadnt_followed_user_to_follow_and_unfollow.friends.count(), 1)    #bar
+        self.assertEqual(self.user_to_follow_and_unfollow.followers.count(), 2)  #foo, baz
 
     def test_unfollow_fails_notloggedin(self):
         """Check that unfollowing a user fails if current user isn't logged-in"""
-        current_user = None
-        user_to_unfollow = 'bar'
-
-        c = Client()
-        response = c.post(f'/{user_to_unfollow}/unfollow')
-
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/unfollow')
         self.assertEqual(response.status_code, 401)
 
     def test_unfollow_fails_notexist(self):
         """Check that ufollowing a user fails if user_to_unfollow doesn't exist in db"""
-        current_user = 'foo'
-        user_to_unfollow = 'i_dont_exist'
-
-        c = Client()
         # must log in first
-        c.login(**self.foo_credentials)
-        response = c.post(f'/{user_to_unfollow}/unfollow')
+        self.client.login(**self.login_credentials_of_user_who_already_followed_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username + "i_dont_exist"}/unfollow')
         self.assertEqual(response.status_code, 404)
 
     def test_unfollow_fails_isself(self):
         """Check that unfollowing a user fails if user_to_unfollow is same as current user"""
-        current_user = 'foo'
-        user_to_unfollow = current_user
-
-        c = Client()
         # must log in first
-        c.login(**self.foo_credentials)
-        response = c.post(f'/{user_to_unfollow}/unfollow')
+        self.client.login(**self.login_credentials_of_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/unfollow')
         self.assertEqual(response.status_code, 400)
 
     def test_unfollow_fails_notfollowing(self):
         """Check that unfollowing a user fails if user_to_unfollow isn't already followed by current user"""
-        current_user = 'bar'
-        user_to_unfollow = 'foo'
-
-        c = Client()
         # must log in first
-        c.login(**self.bar_credentials)
-        response = c.post(f'/{user_to_unfollow}/unfollow')
+        self.client.login(**self.login_credentials_of_user_who_hadnt_followed_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/unfollow')
         self.assertEqual(response.status_code, 400)
 
     def test_unfollow_works(self):
         """Check that logged-in users can unfollow users they are following"""
-        current_user = User.objects.get(username='foo')
-        user_to_unfollow = User.objects.get(username='bar')
-
-        c = Client()
         # must log in first
-        c.login(**self.foo_credentials)
-        response = c.post(f'/{user_to_unfollow.username}/unfollow', follow=True)
+        self.client.login(**self.login_credentials_of_user_who_already_followed_user_to_follow_and_unfollow)
 
+        response = self.client.post(f'/{self.user_to_follow_and_unfollow.username}/unfollow', follow=True)
         # pov: response/view/context
         self.assertEqual(response.status_code, 200)
-
         # pov: db
-        self.assertEqual(current_user.friends.count(), 0)
-        self.assertEqual(user_to_unfollow.followers.count(), 1)
+        self.assertEqual(self.user_who_already_followed_user_to_follow_and_unfollow.friends.count(), 0)
+        self.assertEqual(self.user_to_follow_and_unfollow.followers.count(), 0)
 
 class UserFriendsPostsTests(TestCase):
     def setUp(self):
