@@ -141,42 +141,60 @@ class PostTests(TestCase):
         self.assertEqual(response.status_code, 200)
         # self.assertEqual(response.context['posts'].count(), 3)
 
-    def test_create_post_fails_unauthorized(self):
-        """Check that creating a post fails if current user isn't authorized"""
-        c = Client()
-        response = c.post('/posts/create', self.post_to_add)
-
-        self.assertEqual(response.status_code, 401)
-
-    def test_create_post_fails_notallowed(self):
-        """Check that creating a post fails if request issued isn't POST"""
-        c = Client()
-        # must login first
-        c.login(**self.credentials)
-        response = c.get('/posts/create')
-
-        self.assertEqual(response.status_code, 405)
-
-    def test_create_post_works(self):
-        """Check that an authorized user can create posts"""
-        total_before = Post.objects.count()
-        
-        c = Client()
-        # must login first
-        c.login(**self.credentials)
-        response = c.post('/posts/create', self.post_to_add, follow=True)
-
-        # POV: views/templates/response
-        self.assertEqual(response.status_code, 200)
-
-        # POV: db state
-        total_after = Post.objects.count()
-        self.assertEqual(total_after, total_before + 1)
-
     def test_post_ordering_correct(self):
         """Check that most recent posts always appear first"""
         first_post = Post.objects.first()
         self.assertEqual(first_post._meta.ordering[0], '-created_at')
+
+class CreatePostTests(TestCase):
+    def setUp(self):
+        """Add a user and a post to db"""
+        # config db
+        # db: create a user
+        foo_credentials = { 'username': 'foo',  'password': 'foo' }
+        foo = User.objects.create_user(**foo_credentials)
+
+        # db: create a post
+        p = Post.objects.create(content='some content', user=foo)
+
+        # config client/server
+        # instantiate
+        self.client = Client()
+
+        # client: identify users (and their login credentials)
+        self.user_who_will_add_post = foo
+        self.login_credentials_of_user_who_will_add_post = foo_credentials
+
+        # client: identify resources
+        self.post_to_add = {'content': 'some content'}
+
+    def test_create_post_fails_notloggedin(self):
+        """Check that creating a post fails if current user isn't logged in"""
+        response = self.client.post('/posts/create', self.post_to_add)
+        self.assertEqual(response.status_code, 401)
+
+    def test_create_post_fails_notallowed(self):
+        """Check that creating a post fails if request issued isn't POST"""
+        # must login first
+        self.client.login(**self.login_credentials_of_user_who_will_add_post)
+
+        response = self.client.get('/posts/create')
+        self.assertEqual(response.status_code, 405)
+
+    def test_create_post_works(self):
+        """Check that logged in users can create new posts"""
+        # must login first
+        self.client.login(**self.login_credentials_of_user_who_will_add_post)
+
+        posts_count_before = Post.objects.count()
+
+        response = self.client.post('/posts/create', self.post_to_add, follow=True)
+
+        # POV: views/templates/response
+        self.assertEqual(response.status_code, 200)
+        # POV: db
+        posts_count_after = Post.objects.count()
+        self.assertEqual(posts_count_after, posts_count_before + 1)
 
 class EditPostTests(TestCase):
     def setUp(self):
