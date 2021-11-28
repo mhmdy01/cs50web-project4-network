@@ -1,6 +1,6 @@
 import math
 
-from django.test import TestCase, Client
+from django.test import TestCase
 from django.db.models import Max
 
 from .models import User, Post
@@ -16,8 +16,7 @@ class UserLogin(TestCase):
         """Check that login succeeds when user enters
         their correct username and password
         """
-        c = Client()
-        response = c.post('/login', self.credentials, follow=True)
+        response = self.client.post('/login', self.credentials, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['user'].is_authenticated)
@@ -27,8 +26,7 @@ class UserLogin(TestCase):
         """Check that login fails if user didn't enter their correct username"""
         self.credentials['username'] = self.credentials['username'].upper()
 
-        c = Client()
-        response = c.post('/login', self.credentials, follow=True)
+        response = self.client.post('/login', self.credentials, follow=True)
 
         self.assertEqual(response.status_code, 401)
         self.assertFalse(response.context['user'].is_authenticated)
@@ -38,8 +36,7 @@ class UserLogin(TestCase):
         """Check that login fails if user didn't enter their correct password"""
         self.credentials['password'] = self.credentials['password'].upper()
 
-        c = Client()
-        response = c.post('/login', self.credentials, follow=True)
+        response = self.client.post('/login', self.credentials, follow=True)
 
         self.assertEqual(response.status_code, 401)
         self.assertFalse(response.context['user'].is_authenticated)
@@ -51,13 +48,11 @@ class UserLogout(TestCase):
         self.credentials = { 'username': 'foo',  'password': 'foo' }
         User.objects.create_user(**self.credentials)
 
-        c = Client()
-        self.response_before_logout = c.post('/login', self.credentials, follow=True)
+        self.response_before_logout = self.client.post('/login', self.credentials, follow=True)
 
     def test_logout_works(self):
         """Check that when user logs out their session isn't authenticated anymore"""
-        c = Client()
-        response_after_logout = c.get('/logout', follow=True)
+        response_after_logout = self.client.get('/logout', follow=True)
 
         self.assertTrue(self.response_before_logout.context['user'].is_authenticated)
         self.assertEqual(response_after_logout.status_code, 200)
@@ -80,8 +75,7 @@ class UserSignup(TestCase):
         """Check that signup succeeds when user enters
         unqiue username, unqiue email and a correct password twice
         """
-        c = Client()
-        response = c.post('/register', self.form_fields, follow=True)
+        response = self.client.post('/register', self.form_fields, follow=True)
 
         # POV: views/templates/response
         self.assertEqual(response.status_code, 200)
@@ -95,8 +89,7 @@ class UserSignup(TestCase):
         """Check that signup fails if user didn't enter a correct password twice"""
         self.form_fields['confirmation'] = self.form_fields['confirmation'].upper()
 
-        c = Client()
-        response = c.post('/register', self.form_fields, follow=True)
+        response = self.client.post('/register', self.form_fields, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['user'].is_authenticated)
@@ -106,8 +99,7 @@ class UserSignup(TestCase):
         """Check that signup fails if user didn't enter a unique username"""
         self.form_fields['username'] = self.credentials['username']
 
-        c = Client()
-        response = c.post('/register', self.form_fields, follow=True)
+        response = self.client.post('/register', self.form_fields, follow=True)
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['user'].is_authenticated)
@@ -135,8 +127,7 @@ class PostTests(TestCase):
 
     def test_index_page(self):
         """Should list correct number of posts"""
-        c = Client()
-        response = c.get('/')
+        response = self.client.get('/')
 
         self.assertEqual(response.status_code, 200)
         # self.assertEqual(response.context['posts'].count(), 3)
@@ -157,10 +148,7 @@ class CreatePostTests(TestCase):
         # db: create a post
         p = Post.objects.create(content='some content', user=foo)
 
-        # config client/server
-        # instantiate
-        self.client = Client()
-
+        # config client
         # client: identify users (and their login credentials)
         self.user_who_will_add_post = foo
         self.login_credentials_of_user_who_will_add_post = foo_credentials
@@ -209,10 +197,7 @@ class EditPostTests(TestCase):
         # db: create a post
         p = Post.objects.create(content='some content', user=foo)
 
-        # config client/server
-        # instantiate
-        self.client = Client()
-
+        # config client
         # client: identify users (and their login credentials)
         self.user_who_created_post = foo
         self.login_credentials_of_user_who_created_post = foo_credentials
@@ -279,8 +264,7 @@ class UserProfile(TestCase):
 
     def test_valid_profile_page(self):
         """Check that there's a profile page for a valid username"""
-        c = Client()
-        response = c.get(f'/{self.credentials["username"]}')
+        response = self.client.get(f'/{self.credentials["username"]}')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['user'].username, self.credentials['username'])
@@ -288,8 +272,7 @@ class UserProfile(TestCase):
 
     def test_invalid_profile_page(self):
         """Check that there's no profile page for an invalid username"""
-        c = Client()
-        response = c.get(f'/{self.credentials["username"] + "s"}')
+        response = self.client.get(f'/{self.credentials["username"] + "s"}')
 
         self.assertEqual(response.status_code, 404)
 
@@ -311,10 +294,7 @@ class UserFriendsFollowers(TestCase):
         foo.friends.add(bar)
         bar.followers.add(foo)
 
-        # client/server config
-        # instantiate
-        self.client = Client()
-
+        # config client
         # client: identify users (current, to follow/unfollow) and their login credentials
         self.user_to_follow_and_unfollow = User.objects.get(username='bar')
         self.login_credentials_of_user_to_follow_and_unfollow = bar_credentials
@@ -453,8 +433,7 @@ class UserFriendsPostsTests(TestCase):
 
     def test_friends_posts_page_fails_notloggedin(self):
         """Check that visting friends post page fails if current user isn't logged-in"""
-        c = Client()
-        response = c.get('/following')
+        response = self.client.get('/following')
 
         self.assertEqual(response.status_code, 401)
 
@@ -463,10 +442,9 @@ class UserFriendsPostsTests(TestCase):
         # current_user = 'foo'
         # friends = 'bar', 'baz'
 
-        c = Client()
         # must login first
-        c.login(**self.foo_credentials)
-        response = c.get('/following')
+        self.client.login(**self.foo_credentials)
+        response = self.client.get('/following')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['posts'].count(), 10) # bar_posts + baz_posts
@@ -490,24 +468,21 @@ class PaginationTests(TestCase):
 
     def test_pagination_default_page(self):
         """Check that if no page (GET param) is specified, the current page defaults to 1"""
-        c = Client()
-        response = c.get('/')
+        response = self.client.get('/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['page'].number, 1)
 
     def test_pagination_page_size_correct(self):
         """Check that each page lists 10 posts"""
-        c = Client()
-        response = c.get('/')
+        response = self.client.get('/')
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['page'].__len__(), 10)
 
     def test_pagination_first_page_has_no_prev(self):
         """Check that the first page doesn't have a previous page"""
-        c = Client()
-        response = c.get('/?page=1')
+        response = self.client.get('/?page=1')
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['page'].has_previous())
@@ -518,8 +493,7 @@ class PaginationTests(TestCase):
         # ceil(total / page_size)
         last_page = math.ceil(len(self.posts_to_add) / self.page_size)
 
-        c = Client()
-        response = c.get(f'/?page={last_page}')
+        response = self.client.get(f'/?page={last_page}')
 
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['page'].has_next())
@@ -528,8 +502,7 @@ class PaginationTests(TestCase):
         """Check that on some page (#n), the next page is what we expect (#n+1)"""
         current_page = 3
 
-        c = Client()
-        response = c.get(f'/?page={current_page}')
+        response = self.client.get(f'/?page={current_page}')
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context['page'].has_next())
@@ -539,8 +512,7 @@ class PaginationTests(TestCase):
         """Check that there's no page with page_number < 1 or page_number > max_page_number"""
         page_numbers = [-100, 0, 100]
         for current_page in page_numbers:
-            c = Client()
-            response = c.get(f'/?page={current_page}')
+            response = self.client.get(f'/?page={current_page}')
 
             self.assertEqual(response.status_code, 404)
 
@@ -570,10 +542,7 @@ class PostLikesTests(TestCase):
         post_to_like_and_unlike = Post.objects.first()
         baz.likes.add(post_to_like_and_unlike)
 
-        # client/server config
-        # instantiate
-        self.client = Client()
-
+        # config client
         # client: identify resources
         self.post_to_like = post_to_like_and_unlike
         self.post_to_unlike = post_to_like_and_unlike
