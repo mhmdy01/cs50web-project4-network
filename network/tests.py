@@ -6,10 +6,21 @@ from django.db.models import Max
 from .models import User, Post
 
 
+# init some data
+# TODO: can refactor @module or @class instead?
+# users
+foo_credentials = {'username': 'foo',  'password': 'foo'}
+bar_credentials = {'username': 'bar',  'password': 'bar'}
+baz_credentials = {'username': 'baz',  'password': 'baz'}
+
+# posts
+post = {'content': 'some content'}
+new_post = {'content': 'some new content'}
+
 class UserLoginTests(TestCase):
     def setUp(self):
         """add a user to db"""
-        self.credentials = { 'username': 'foo',  'password': 'foo' }
+        self.credentials = foo_credentials
         User.objects.create_user(**self.credentials)
 
     def test_login_fails_wrong_username(self):
@@ -40,7 +51,7 @@ class UserLoginTests(TestCase):
 class UserLogoutTests(TestCase):
     def setUp(self):
         """add a user to db and log it in"""
-        self.credentials = { 'username': 'foo',  'password': 'foo' }
+        self.credentials = foo_credentials
         User.objects.create_user(**self.credentials)
 
         self.response_before_logout = self.client.post('/login', self.credentials, follow=True)
@@ -55,7 +66,7 @@ class UserLogoutTests(TestCase):
 class UserSignupTests(TestCase):
     def setUp(self):
         """add a user to db and initialize some fields for another user signup"""
-        self.credentials = { 'username': 'foo',  'password': 'foo' }
+        self.credentials = foo_credentials
         User.objects.create_user(**self.credentials)
 
         self.signup_form_fields = {
@@ -98,14 +109,12 @@ class UserSignupTests(TestCase):
 
 class PostTests(TestCase):
     def setUp(self):
-        """Create new user and posts in db"""
-        self.credentials = { 'username': 'foo',  'password': 'foo' }
-        self.post_to_add = {'content': 'new content'}
-
+        """add a user and some posts in db"""
+        self.credentials = foo_credentials
         u = User.objects.create_user(**self.credentials)
-        Post.objects.create(content='post foo', user=u)
-        Post.objects.create(content='post bar', user=u)
-        Post.objects.create(content='post baz', user=u)
+
+        for _ in range(3):
+            Post.objects.create(content=post['content'], user=u)
 
     def test_user_posts_count(self):
         """Check that the number of posts created by a user is correct"""
@@ -133,7 +142,6 @@ class CreatePostTests(TestCase):
         """Add a user and a post to db"""
         # config db
         # db: create a user
-        foo_credentials = { 'username': 'foo',  'password': 'foo' }
         foo = User.objects.create_user(**foo_credentials)
 
         # db: create a post
@@ -180,8 +188,6 @@ class EditPostTests(TestCase):
         """Add two users and a post to db"""
         # config db
         # db: create two users
-        foo_credentials = { 'username': 'foo',  'password': 'foo' }
-        bar_credentials = { 'username': 'bar',  'password': 'bar' }
         foo = User.objects.create_user(**foo_credentials)
         bar = User.objects.create_user(**bar_credentials)
 
@@ -245,18 +251,16 @@ class EditPostTests(TestCase):
 
 class UserProfile(TestCase):
     def setUp(self):
-        """Create new user and posts in db"""
-        self.credentials = { 'username': 'foo',  'password': 'foo' }
-
+        """add a user and some posts in db"""
+        self.credentials = foo_credentials
         u = User.objects.create_user(**self.credentials)
-        Post.objects.create(content='post foo', user=u)
-        Post.objects.create(content='post bar', user=u)
-        Post.objects.create(content='post baz', user=u)
+
+        for _ in range(3):
+            Post.objects.create(content=post['content'], user=u)
 
     def test_valid_profile_page(self):
         """Check that there's a profile page for a valid username"""
         response = self.client.get(f'/{self.credentials["username"]}')
-
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['user'].username, self.credentials['username'])
         self.assertEqual(response.context['posts'].count(), 3)
@@ -264,7 +268,6 @@ class UserProfile(TestCase):
     def test_invalid_profile_page(self):
         """Check that there's no profile page for an invalid username"""
         response = self.client.get(f'/{self.credentials["username"] + "s"}')
-
         self.assertEqual(response.status_code, 404)
 
 class UserFriendsFollowers(TestCase):
@@ -272,9 +275,6 @@ class UserFriendsFollowers(TestCase):
         """add some users to db and make some friend/follower relations"""
         # config db
         # db: create some users
-        foo_credentials = { 'username': 'foo',  'password': 'foo' }
-        bar_credentials = { 'username': 'bar',  'password': 'bar' }
-        baz_credentials = { 'username': 'baz',  'password': 'baz' }
         foo = User.objects.create_user(**foo_credentials)
         bar = User.objects.create_user(**bar_credentials)
         baz = User.objects.create_user(**baz_credentials)
@@ -399,15 +399,12 @@ class UserFriendsFollowers(TestCase):
 
 class UserFriendsPostsTests(TestCase):
     def setUp(self):
-        """Create new user and posts in db"""
-        self.foo_credentials = { 'username': 'foo',  'password': 'foo' }
-        self.bar_credentials = { 'username': 'bar',  'password': 'bar' }
-        self.baz_credentials = { 'username': 'baz',  'password': 'baz' }
-
+        """add some users and posts in db and create some friend/follower relation"""
         # create some users
-        foo = User.objects.create_user(**self.foo_credentials)
-        bar = User.objects.create_user(**self.bar_credentials)
-        baz = User.objects.create_user(**self.baz_credentials)
+        self.foo_credentials = foo_credentials
+        foo = User.objects.create_user(**foo_credentials)
+        bar = User.objects.create_user(**bar_credentials)
+        baz = User.objects.create_user(**baz_credentials)
 
         # create some friends/followers
         foo.friends.add(bar)
@@ -425,7 +422,6 @@ class UserFriendsPostsTests(TestCase):
     def test_friends_posts_page_fails_notloggedin(self):
         """Check that visting friends post page fails if current user isn't logged-in"""
         response = self.client.get('/following')
-
         self.assertEqual(response.status_code, 401)
 
     def test_friends_posts_page_works(self):
@@ -435,18 +431,16 @@ class UserFriendsPostsTests(TestCase):
 
         # must login first
         self.client.login(**self.foo_credentials)
-        response = self.client.get('/following')
 
+        response = self.client.get('/following')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['posts'].count(), 10) # bar_posts + baz_posts
 
 class PaginationTests(TestCase):
     def setUp(self):
         """add a new user and posts in db"""
-        self.credentials = { 'username': 'foo',  'password': 'foo' }
-
         # create some users
-        user = User.objects.create_user(**self.credentials)
+        user = User.objects.create_user(**foo_credentials)
 
         # create some posts
         self.posts_to_add = [f'post #{i + 1}' for i in range(55)]
@@ -516,10 +510,6 @@ class PostLikesTests(TestCase):
         """Create some users and posts in db and like some posts"""
         # config db
         # db: create some users
-        foo_credentials = { 'username': 'foo',  'password': 'foo' }
-        bar_credentials = { 'username': 'bar',  'password': 'bar' }
-        baz_credentials = { 'username': 'baz',  'password': 'baz' }
-
         foo = User.objects.create_user(**foo_credentials)
         bar = User.objects.create_user(**bar_credentials)
         baz = User.objects.create_user(**baz_credentials)
