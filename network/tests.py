@@ -6,45 +6,40 @@ from django.db.models import Max
 from .models import User, Post
 
 
-class UserLogin(TestCase):
+class UserLoginTests(TestCase):
     def setUp(self):
-        """Create new user in db"""
+        """add a user to db"""
         self.credentials = { 'username': 'foo',  'password': 'foo' }
         User.objects.create_user(**self.credentials)
 
-    def test_login_success(self):
-        """Check that login succeeds when user enters
-        their correct username and password
-        """
-        response = self.client.post('/login', self.credentials, follow=True)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context['user'].is_authenticated)
-        self.assertEqual(response.context['user'].username, self.credentials['username'])
-
-    def test_login_fail_username(self):
+    def test_login_fails_wrong_username(self):
         """Check that login fails if user didn't enter their correct username"""
         self.credentials['username'] = self.credentials['username'].upper()
 
         response = self.client.post('/login', self.credentials, follow=True)
-
         self.assertEqual(response.status_code, 401)
         self.assertFalse(response.context['user'].is_authenticated)
         self.assertEqual(response.context['message'], "Invalid username and/or password.")
 
-    def test_login_fail_password(self):
+    def test_login_fails_wrong_password(self):
         """Check that login fails if user didn't enter their correct password"""
         self.credentials['password'] = self.credentials['password'].upper()
 
         response = self.client.post('/login', self.credentials, follow=True)
-
         self.assertEqual(response.status_code, 401)
         self.assertFalse(response.context['user'].is_authenticated)
         self.assertEqual(response.context['message'], "Invalid username and/or password.")
 
-class UserLogout(TestCase):
+    def test_login_works(self):
+        """Check that users can login successfully when they enter their correct username and password"""
+        response = self.client.post('/login', self.credentials, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['user'].is_authenticated)
+        self.assertEqual(response.context['user'].username, self.credentials['username'])
+
+class UserLogoutTests(TestCase):
     def setUp(self):
-        """Create new user in db and log it in"""
+        """add a user to db and log it in"""
         self.credentials = { 'username': 'foo',  'password': 'foo' }
         User.objects.create_user(**self.credentials)
 
@@ -53,57 +48,53 @@ class UserLogout(TestCase):
     def test_logout_works(self):
         """Check that when user logs out their session isn't authenticated anymore"""
         response_after_logout = self.client.get('/logout', follow=True)
-
         self.assertTrue(self.response_before_logout.context['user'].is_authenticated)
         self.assertEqual(response_after_logout.status_code, 200)
         self.assertFalse(response_after_logout.context['user'].is_authenticated)
 
-class UserSignup(TestCase):
+class UserSignupTests(TestCase):
     def setUp(self):
-        """Create new user to db and initialize some fields for another user signup"""
+        """add a user to db and initialize some fields for another user signup"""
         self.credentials = { 'username': 'foo',  'password': 'foo' }
         User.objects.create_user(**self.credentials)
 
-        self.form_fields = {
+        self.signup_form_fields = {
             'username': 'bar',
             'email': 'bar@email.com',
             'password': 'bar',
             'confirmation': 'bar'
         }
 
-    def test_signup_success(self):
-        """Check that signup succeeds when user enters
-        unqiue username, unqiue email and a correct password twice
-        """
-        response = self.client.post('/register', self.form_fields, follow=True)
-
-        # POV: views/templates/response
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context['user'].is_authenticated)
-        self.assertEqual(response.context['user'].username, self.form_fields['username'])
-
-        # POV: db state
-        self.assertEqual(User.objects.count(), 2)
-
-    def test_signup_fail_password(self):
+    def test_signup_fails_password_confirm_notmatch(self):
         """Check that signup fails if user didn't enter a correct password twice"""
-        self.form_fields['confirmation'] = self.form_fields['confirmation'].upper()
+        self.signup_form_fields['confirmation'] = self.signup_form_fields['confirmation'].upper()
 
-        response = self.client.post('/register', self.form_fields, follow=True)
-
+        response = self.client.post('/register', self.signup_form_fields, follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['user'].is_authenticated)
         self.assertEqual(response.context['message'], "Passwords must match.")
 
-    def test_signup_fail_username(self):
-        """Check that signup fails if user didn't enter a unique username"""
-        self.form_fields['username'] = self.credentials['username']
+    def test_signup_fails_username_notunique(self):
+        """Check that signup fails if user used a username that already exist"""
+        self.signup_form_fields['username'] = self.credentials['username']
 
-        response = self.client.post('/register', self.form_fields, follow=True)
-
+        response = self.client.post('/register', self.signup_form_fields, follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['user'].is_authenticated)
         self.assertEqual(response.context['message'], "Username already taken.")
+
+    def test_signup_works(self):
+        """Check that signup succeeds when user enters
+        unqiue username, unqiue email and a correct password twice
+        """
+        response = self.client.post('/register', self.signup_form_fields, follow=True)
+
+        # POV: views/templates/response
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['user'].is_authenticated)
+        self.assertEqual(response.context['user'].username, self.signup_form_fields['username'])
+        # POV: db state
+        self.assertEqual(User.objects.count(), 2)
 
 class PostTests(TestCase):
     def setUp(self):
