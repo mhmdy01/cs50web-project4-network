@@ -263,7 +263,6 @@ class UserProfile(TestCase):
         response = self.client.get(f'/{self.credentials["username"]}')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context['user'].username, self.credentials['username'])
-        self.assertEqual(response.context['posts'].count(), 3)
 
     def test_invalid_profile_page(self):
         """Check that there's no profile page for an invalid username"""
@@ -434,7 +433,6 @@ class UserFriendsPostsTests(TestCase):
 
         response = self.client.get('/following')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.context['posts'].count(), 10) # bar_posts + baz_posts
 
 class PaginationTests(TestCase):
     def setUp(self):
