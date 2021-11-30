@@ -65,10 +65,8 @@ function updatePostContent(postContentView, updatedContent) {
 }
 
 // replace post likes with updated likes (from server response)
-function updatePostLikes(postId, updatedLikes) {
-    const postDiv = document.querySelector(`div[data-id="${postId}"]`)
-    const likesDiv = postDiv.querySelector('div.likes-container')
-    likesDiv.innerHTML = updatedLikes;
+function updatePostLikes(postLikesDiv, updatedLikes) {
+    postLikesDiv.innerHTML = updatedLikes;
 }
 
 // ====== http helper functions ====== //
@@ -140,22 +138,20 @@ async function updatePost(postId, postContentView, postContentEditingView) {
 }
 
 // like post when user clicks like btn
-async function likePost(postId) {
-    // console.log(`liking post#${postId}`);
+async function likePost(postId, postLikesDiv) {
     try {
         const resBody = await sendRequest(`/posts/${postId}/like`, 'POST');
-        updatePostLikes(postId, resBody);
+        updatePostLikes(postLikesDiv, resBody);
     } catch (error) {
         console.log('like_post', '|', error.message);
     }
 }
 
 // unlike post when user clicks unlike btn
-async function unLikePost(postId) {
-    // console.log(`unliking post#${postId}`);
+async function unLikePost(postId, postLikesDiv) {
     try {
         const resBody = await sendRequest(`/posts/${postId}/unlike`, 'POST');
-        updatePostLikes(postId, resBody);
+        updatePostLikes(postLikesDiv, resBody);
     } catch (error) {
         console.log('unlike_post', '|', error.message);
     }
@@ -164,6 +160,9 @@ async function unLikePost(postId) {
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.post').forEach(postDiv => {
         const postId = postDiv.dataset.id;
+
+        const postLikesDiv = postDiv.querySelector('div.likes-container');
+
         // post content container div has two views
         // content view: which include the actual content
         // content editing view: which include the editing form
@@ -184,9 +183,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const clickedElement = event.target;
 
             if (isLikeBtn(clickedElement)) {
-                likePost(postId);
+                likePost(postId, postLikesDiv);
             } else if (isUnlikeBtn(clickedElement)) {
-                unLikePost(postId);
+                unLikePost(postId, postLikesDiv);
             } else if (isEditBtn(clickedElement)) {
                 showEditPostForm(postContentView, postContentEditingView);
             } else if (isCancelEditBtn(clickedElement)) {
