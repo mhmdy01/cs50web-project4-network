@@ -396,27 +396,27 @@ class UserFriendsFollowers(TestCase):
         self.assertEqual(self.user_who_already_followed_user_to_follow_and_unfollow.friends.count(), 0)
         self.assertEqual(self.user_to_follow_and_unfollow.followers.count(), 0)
 
-class UserFriendsPostsTests(TestCase):
+class FriendsPostsTests(TestCase):
     def setUp(self):
-        """add some users and posts in db and create some friend/follower relation"""
-        # create some users
+        """add some users and posts to db and make some friend/follower relation"""
+        # config db
+        # db: create some users
         self.foo_credentials = foo_credentials
         foo = User.objects.create_user(**foo_credentials)
         bar = User.objects.create_user(**bar_credentials)
-        baz = User.objects.create_user(**baz_credentials)
 
-        # create some friends/followers
+        # db: add some friends/followers
         foo.friends.add(bar)
         bar.followers.add(foo)
 
-        foo.friends.add(baz)
-        baz.followers.add(foo)
+        # db: create some posts
+        for _ in range(5):
+            Post.objects.create(content=post['content'], user=bar)
 
-        # create some posts
-        posts_to_add = [f'post #{i + 1}' for i in range(5)]
-        for post_content in posts_to_add:
-            Post.objects.create(content=post_content, user=bar)
-            Post.objects.create(content=post_content, user=baz)
+        # config client
+        # client: identify users (and their login credentials)
+        self.user_who_is_following = foo
+        self.login_credentials_of_user_who_is_following = foo_credentials
 
     def test_friends_posts_page_fails_notloggedin(self):
         """Check that visting friends post page fails if current user isn't logged-in"""
@@ -425,11 +425,8 @@ class UserFriendsPostsTests(TestCase):
 
     def test_friends_posts_page_works(self):
         """Check that logged-in users can visit a page to view the posts created by their friends"""
-        # current_user = 'foo'
-        # friends = 'bar', 'baz'
-
         # must login first
-        self.client.login(**self.foo_credentials)
+        self.client.login(**self.login_credentials_of_user_who_is_following)
 
         response = self.client.get('/following')
         self.assertEqual(response.status_code, 200)
