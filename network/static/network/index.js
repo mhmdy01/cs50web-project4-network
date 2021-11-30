@@ -1,3 +1,36 @@
+// ====== dom helper functions ====== //
+
+// check if clicked element is like-post btn
+function isLikeBtn(elm) {
+    return elm && (elm.matches('.like-post') || elm.parentElement.matches('.like-post'));
+}
+
+// check if clicked element is unlike-post btn
+function isUnlikeBtn(elm) {
+    return elm && (elm.matches('.unlike-post') || elm.parentElement.matches('.unlike-post'));
+}
+
+// check if clicked element is edit-post btn
+// that is used to show post editing view
+function isEditBtn(elm) {
+    return elm && elm.matches('.edit-post');
+}
+
+// check if clicked element is cancel-edit-post btn
+// that is used to return to post content view
+function isCancelEditBtn(elm) {
+    return elm && elm.matches('.cancel-edit-post');
+}
+
+// check if clicked element is save-edit-post btn
+// that is used to send edits/changes to server
+// and return to post content view
+function isSaveEditBtn(elm) {
+    return elm && elm.matches('.save-edit-post');
+}
+
+// ====== dom manipulation functions ====== //
+
 // when showing post editing view
 // textarea element must be pre-populated with current post content
 function prepopulateTextArea(postContentView, postContentEditingView) {
@@ -31,60 +64,14 @@ function updatePostContent(postContentView, updatedContent) {
     postContentView.querySelector('p').innerHTML = updatedContent;
 }
 
-// when user save their edits
-// send a put request to server to update post content
-async function updatePost(postId, postContentView, postContentEditingView) {
-    // get changed content
-    const newContent = postContentEditingView.querySelector('textarea').value;
-
-    // send the request
-    // TODO: add validation and error handling here
-    // also, MUST DISPLAY A NOTIFICATION for user detailing
-    // server response/reason for rejecting the request
-    try {
-        const resBody = await sendRequest(`posts/${postId}/edit`, 'PUT', {}, JSON.stringify({ content: newContent }));
-        updatePostContent(postContentView, resBody);
-        hideEditPostForm(postContentView, postContentEditingView);
-    } catch (error) {
-        console.log(`update_post | ERROR |`, error.message);
-    }
-}
-
-// check if clicked element is like-post btn
-function isLikeBtn(elm) {
-    return elm && (elm.matches('.like-post') || elm.parentElement.matches('.like-post'));
-}
-
-// check if clicked element is unlike-post btn
-function isUnlikeBtn(elm) {
-    return elm && (elm.matches('.unlike-post') || elm.parentElement.matches('.unlike-post'));
-}
-
-// check if clicked element is edit-post btn
-// that is used to show post editing view
-function isEditBtn(elm) {
-    return elm && elm.matches('.edit-post');
-}
-
-// check if clicked element is cancel-edit-post btn
-// that is used to return to post content view
-function isCancelEditBtn(elm) {
-    return elm && elm.matches('.cancel-edit-post');
-}
-
-// check if clicked element is save-edit-post btn
-// that is used to send edits/changes to server
-// and return to post content view
-function isSaveEditBtn(elm) {
-    return elm && elm.matches('.save-edit-post');
-}
-
 // replace post likes with updated likes (from server response)
 function updatePostLikes(postId, updatedLikes) {
     const postDiv = document.querySelector(`div[data-id="${postId}"]`)
     const likesDiv = postDiv.querySelector('div.likes-container')
     likesDiv.innerHTML = updatedLikes;
 }
+
+// ====== http helper functions ====== //
 
 // send an http request
 async function sendRequest(url, method='GET', headers={}, body=null) {
@@ -128,6 +115,27 @@ async function sendRequest(url, method='GET', headers={}, body=null) {
         return resBody;
     } else {
         throw new Error(resBody);
+    }
+}
+
+// ====== ajax functions ====== //
+
+// when user save their edits
+// send a put request to server to update post content
+async function updatePost(postId, postContentView, postContentEditingView) {
+    // get changed content
+    const newContent = postContentEditingView.querySelector('textarea').value;
+
+    // send the request
+    // TODO: add validation and error handling here
+    // also, MUST DISPLAY A NOTIFICATION for user detailing
+    // server response/reason for rejecting the request
+    try {
+        const resBody = await sendRequest(`posts/${postId}/edit`, 'PUT', {}, JSON.stringify({ content: newContent }));
+        updatePostContent(postContentView, resBody);
+        hideEditPostForm(postContentView, postContentEditingView);
+    } catch (error) {
+        console.log(`update_post | ERROR |`, error.message);
     }
 }
 
