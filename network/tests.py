@@ -17,51 +17,6 @@ baz_credentials = {'username': 'baz',  'password': 'baz'}
 post = {'content': 'some content'}
 new_post = {'content': 'some new content'}
 
-class UserLoginTests(TestCase):
-    def setUp(self):
-        """add a user to db"""
-        self.credentials = foo_credentials
-        User.objects.create_user(**self.credentials)
-
-    def test_login_fails_wrong_username(self):
-        """Check that login fails if user didn't enter their correct username"""
-        self.credentials['username'] = self.credentials['username'].upper()
-
-        response = self.client.post('/login', self.credentials, follow=True)
-        self.assertEqual(response.status_code, 401)
-        self.assertFalse(response.context['user'].is_authenticated)
-        self.assertEqual(response.context['message'], "Invalid username and/or password.")
-
-    def test_login_fails_wrong_password(self):
-        """Check that login fails if user didn't enter their correct password"""
-        self.credentials['password'] = self.credentials['password'].upper()
-
-        response = self.client.post('/login', self.credentials, follow=True)
-        self.assertEqual(response.status_code, 401)
-        self.assertFalse(response.context['user'].is_authenticated)
-        self.assertEqual(response.context['message'], "Invalid username and/or password.")
-
-    def test_login_works(self):
-        """Check that users can login successfully when they enter their correct username and password"""
-        response = self.client.post('/login', self.credentials, follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(response.context['user'].is_authenticated)
-        self.assertEqual(response.context['user'].username, self.credentials['username'])
-
-class UserLogoutTests(TestCase):
-    def setUp(self):
-        """add a user to db and log it in"""
-        self.credentials = foo_credentials
-        User.objects.create_user(**self.credentials)
-
-        self.response_before_logout = self.client.post('/login', self.credentials, follow=True)
-
-    def test_logout_works(self):
-        """Check that when user logs out their session isn't authenticated anymore"""
-        response_after_logout = self.client.get('/logout', follow=True)
-        self.assertTrue(self.response_before_logout.context['user'].is_authenticated)
-        self.assertEqual(response_after_logout.status_code, 200)
-        self.assertFalse(response_after_logout.context['user'].is_authenticated)
 
 class UserSignupTests(TestCase):
     def setUp(self):
