@@ -1,0 +1,16 @@
+{% extends "network/layout.html" %}
+{% load crispy_forms_tags %}
+
+{% block body %}
+    <h2>Log In</h2>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form|crispy }}
+        <input class="btn btn-primary" type="submit" value="Log In">
+    </form>
+
+    <div>
+        Don't have an account? <a href="{% url 'signup' %}">Sign Up here.</a>
+    </div>
+{% endblock %}
